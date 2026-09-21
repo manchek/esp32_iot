@@ -1,0 +1,19 @@
+<html>
+<head>
+<title>Logout</title>
+</head>
+<body>
+Product Name
+<hr>
+<a href="/login">Log In</a>
+<hr>
+You are now logged out.
+</body>
+<script>
+window.onload = function () {
+  setTimeout(() => {
+    window.location = window.location.protocol + '//' + window.location.host;
+  }, 5000);
+}
+</script>
+</html>

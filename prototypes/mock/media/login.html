@@ -1,0 +1,27 @@
+<html>
+<head>
+<title>Login</title>
+</head>
+<body>
+Product Name
+<hr>
+<form method="post">
+<label for="user">Username: </label><input type="text" id="user" name="user"></input>
+<br>
+<label for="pw">Password: </label><input type="password" id="pw" name="pw"></input>
+<button type="button" onclick="togv()">*</button>
+<br>
+<input type="submit" value="Login"></input>
+</form>
+</body>
+<script>
+function togv() {
+  var e = document.getElementById('pw')
+  if (e.type == 'text') {
+    e.type = 'password';
+  } else {
+    e.type = 'text';
+  }
+}
+</script>
+</html>
