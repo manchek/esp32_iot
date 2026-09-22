@@ -2,6 +2,8 @@
 
 import argparse
 import magic
+# if we can't deal with magic, try import filetype ; filetype.guess
+# or import mimetypes, which uses only the extension which might be alright for us
 import os
 import pathlib
 import re
