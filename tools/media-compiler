@@ -1,0 +1,109 @@
+#!/usr/bin/python3
+
+import argparse
+import magic
+import os
+import pathlib
+import re
+import sys
+from textwrap import dedent
+
+parser = argparse.ArgumentParser(description = 'Send command to G3')
+parser.add_argument('-n', dest='no_output', action='store_const',
+					const=True, default=False,
+					help='skip writing output files')
+parser.add_argument('-o', dest='outfile',
+                    help='output C file')
+parser.add_argument('-v', dest='verbose', action='append_const', const=True,
+					help='verbose operation (can repeat)')
+parser.add_argument('args', metavar='Args', type=str, nargs='*',
+					help='source directory')
+args = parser.parse_args()
+verbose = len(args.verbose) if args.verbose else 0
+
+mediafolder = args.args[0]
+
+class Media:
+	def __init__(self, filename):
+		self.filename = filename
+		self.cname = re.sub(r'[^a-zA-Z0-9]+', '_', filename) + '_data'
+		fpath = os.path.join(mediafolder, filename)
+		self.mimetype = magic.from_file(fpath, mime=True)
+		with open(fpath, 'rb') as ff:
+			self.data = ff.read()
+			self.size = len(self.data)
+		#print('adding {0} {1} size {2}'.format(filename, self.cname, self.size))
+
+	def generate_data(self, ff):
+		lines = []
+		lines.append(f'static const uint8_t {self.cname}[] = {{')
+		line = ''
+		for b in self.data:
+			line += ' 0x{0:02x},'.format(b)
+			if len(line) > 100:
+				lines.append(line)
+				line = ''
+		if line != '':
+			lines.append(line)
+		lines.append(f'}};')
+		lines.append('')
+		ff.write('\n'.join(lines))
+
+	def generate_mediafile(self, ff):
+		ff.write(f'  {{ "{self.filename}", "{self.mimetype}", {self.size}, {self.cname} }},\n')
+
+medialist = []
+dirpath = pathlib.Path(mediafolder)
+for f in dirpath.iterdir():
+	if f.is_file:
+		medialist.append(Media(f.name))
+
+def generate_c(ff):
+	ff.write(dedent('''\
+		#include <stdbool.h>
+		#include <stdint.h>
+		#include <string.h>
+
+		struct mediafile {
+			const char *filename;
+			const char *mimetype;
+			int size;
+			const uint8_t *data;
+		};
+
+	'''))
+
+	for m in medialist:
+		m.generate_data(ff)
+
+	ff.write(dedent('''\
+
+		static const struct mediafile media[] = {
+	'''))
+
+	for m in medialist:
+		m.generate_mediafile(ff)
+
+	ff.write(dedent('''\
+		};
+
+		bool find_media( const char *filename, const char **mimetype, int *size, const uint8_t **data )
+		{
+			for (int i = 0; i < sizeof(media)/sizeof(media[0]); i++) {
+				if (!strcmp(filename, media[i].filename)) {
+					*mimetype = media[i].mimetype;
+					*size = media[i].size;
+					*data = media[i].data;
+					return true;
+				}
+			}
+			return false;
+		}
+	'''))
+
+if args.outfile:
+	with open(args.outfile, 'w') as ff:
+		generate_c(ff)
+else:
+	generate_c(sys.stdout)
+

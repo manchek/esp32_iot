@@ -13,6 +13,7 @@
 
 #include "network.h"
 #include "portal.h"
+#include "nowfun.h"
 
 static const char *LOGTAG = "MAIN";
 
