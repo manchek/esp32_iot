@@ -89,10 +89,10 @@ def generate_c(ff):
 	ff.write(dedent('''\
 		};
 
-		bool find_media( const char *filename, const char **mimetype, int *size, const uint8_t **data )
+		bool find_media( const char *path, int pathlen, const char **mimetype, int *size, const uint8_t **data )
 		{
 			for (int i = 0; i < sizeof(media)/sizeof(media[0]); i++) {
-				if (!strcmp(filename, media[i].filename)) {
+				if (pathlen == strlen(media[i].filename) && !strncmp(path, media[i].filename, pathlen)) {
 					*mimetype = media[i].mimetype;
 					*size = media[i].size;
 					*data = media[i].data;

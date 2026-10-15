@@ -1,3 +1,5 @@
 build
+cscope.files
+cscope.out
 sdkconfig.old
 main/MediaFiles.c
