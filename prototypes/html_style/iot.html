@@ -1,0 +1,70 @@
+<html>
+<head>
+  <style>
+  body {
+    font-family: 'Trebuchet MS', Arial, Verdana, Tahoma, sans-serif;
+    background: #000000;
+    padding: 1rem;
+  }
+  #outside {
+    display: grid;
+    grid-template-rows: 100px auto 50px;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 1rem;
+    height: 90vh;
+    border-radius: 16px;
+    background: #e0d8d0;
+  }
+  #header {
+    border-radius: 16px 16px 0 0;
+    text-align: center;
+    font-size: 2rem;
+    background: #fff5ee;
+  }
+  #main {
+    font-size: 2rem;
+    text-align: center;
+  }
+  #bpanl {
+    padding-top: 100px;
+    display: grid;
+    grid-template-columns: auto;
+  }
+  .bigbut {
+    padding: 14px 28px;
+    border-radius: 8px;
+    border-width: 2px;
+    font-size: 2rem;
+    background: #c0c0c0;
+  }
+  #footer {
+    border-radius: 0 0 16px 16px;
+    background: #fff5ee;
+  }
+  .ftab {
+    width: 100%
+  }
+  </style>
+</head>
+<body>
+  <div id="outside">
+    <div id="header">
+    <img src="ac_logo.png">
+    <br>
+    VentCommander
+    </div>
+    <div id="main">
+      <div id="bpanl">
+        <button class=bigbut>Ventilation</button>
+        <button class=bigbut>Devices</button>
+        <button class=bigbut>Network Status</button>
+        <button class=bigbut>Configuration</button>
+      </div>
+    </div>
+    <div id="footer">
+      <table class="ftab"><tr><td>1.0.2</td><td>Up 1h30m</td><td>Ready</td></tr></table>
+    </div>
+  </div>
+</body>
+</html>
