@@ -10,6 +10,7 @@ idf_component_register(
 		"network.c"
 		"nowfun.c"
 		"portal.c"
+		"FormUploader.c"
 		${GENERATED_C}
 		${GENERATED_CONFIG}
 		"AC_NVS.c"

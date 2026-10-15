@@ -4,6 +4,7 @@
 #include <esp_http_server.h>
 #include "portal.h"
 #include "network.h"
+#include "FormUploader.h"
 #include "MediaFiles.h"
 
 static const char *LOGTAG = "PORTAL";
@@ -108,6 +109,7 @@ form_handler( httpd_req_t *req )
 	ESP_LOGI(LOGTAG, "form_handler method=%d uri=%s path=%.*s query=%s content=%d", req->method, req->uri, pathlen, path, (query ? query : "(none)"), req->content_len);
 
 	if (req->method == HTTP_POST && req->content_len > 0) {
+#if 1
 		char buf[256];
 		int done = 0;
 		int n;
@@ -116,16 +118,26 @@ form_handler( httpd_req_t *req )
 			done += n;
 			ESP_LOGI(LOGTAG, "Request: %.*s", n, buf);
 		}
+#else
+		FormUploader_t upl;
+		formUploaderInit(&upl, req);
+		char *name;
+		char *value;
+		while (formUploaderNext(&upl, &name, &value)) {
+			ESP_LOGI(LOGTAG, "Post: %s = %s", name, value);
+		}
+#endif
 	}
 
 	httpd_resp_sendstr_chunk(req, page_header);
 	httpd_resp_sendstr_chunk(req,
-		"<form method=\"post\" enctype=\"text/plain\">"
+		//"<form method=\"post\" enctype=\"text/plain\">"
+		"<form method=\"post\">"
 		"<table>"
 	);
-#if 0
+#if 1
 	httpd_resp_sendstr_chunk(req,
-		"<tr><td>SSID</td><td><input type=\"text\" name=\"ssid\"><button name=\"scan\" value=\"1\">Scan</button></td></tr>"
+		"<tr><td>SSID</td><td><input type=\"text\" name=\"ssid\"><button name=\"scan\" value=\"1\">Scan WiFi</button></td></tr>"
 	);
 #else
 	//network_scan(true);
