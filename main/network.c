@@ -52,12 +52,15 @@ ip_event_handler( void *ctx, esp_event_base_t event_base, int32_t event_id, void
 	}
 }
 
+#define MAX_AP_RECORDS 10
+static uint8_t ap_count = 0;                      // AP count from last scan
+static wifi_ap_record_t ap_list[MAX_AP_RECORDS];  // APs found in last scan
+
 static void
 wifi_event_handler( void *ctx, esp_event_base_t event_base, int32_t event_id, void* event_data )
 {
 	ESP_LOGI(LOGTAG, "WiFi event %d %d", event_base, event_id);
 
-#if 0
 	if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
 		uint16_t n;
 		esp_wifi_scan_get_ap_num(&n);
@@ -65,16 +68,14 @@ wifi_event_handler( void *ctx, esp_event_base_t event_base, int32_t event_id, vo
 		if (n > MAX_AP_RECORDS)
 			n = MAX_AP_RECORDS;
 
+		//esp_wifi_clear_ap_list();
 		esp_wifi_scan_get_ap_records(&n, ap_list);
 		ap_count = n;
-		ap_scan_running = 0;
-/*
+		//ap_scan_running = 0;
 		for (int i = 0; i < n; i++) {
-			ESP_LOGI(LOGTAG, "%d. %s rssi %d", i, aps[i].ssid, (int)aps[i].rssi);
+			ESP_LOGI(LOGTAG, "%d. %s rssi %d", i, ap_list[i].ssid, (int)ap_list[i].rssi);
 		}
-*/
 	}
-#endif
 }
 
 void network_init()
@@ -146,5 +147,17 @@ void advertise_ap( bool onoff )
 	ap_config.ap.ssid_hidden = !onoff;
 	ESP_LOGI(LOGTAG, "Set AP hidden %d", ap_config.ap.ssid_hidden);
 	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &ap_config));
+}
+
+void network_scan( bool block )
+{
+	esp_wifi_scan_start(NULL, block);
+}
+
+void network_scan_access_points( uint8_t *count, wifi_ap_record_t **list )
+{
+	esp_wifi_scan_start(NULL, true);
+	*count = ap_count;
+	*list = ap_list;
 }
 

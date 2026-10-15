@@ -1,0 +1,70 @@
+<html>
+<head>
+<style>
+body {
+  font-family: Arial;
+  padding: 1em;
+}
+
+.tabs-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  user-select: none;
+}
+
+.tab-item {
+  background: #bcbcbc;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+}
+
+.tab-content {
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid grey;
+  display: none; /* Hide all content by default */
+}
+
+.tab-item input {
+  display: none; /* Hide radio buttons */
+}
+
+.tab-item:has(input:checked) {
+  background: #6b54f0; /* Highlight active tab */
+}
+
+.tabs-wrapper:has(#tab-a-toggle:checked) #tab-a-content,
+.tabs-wrapper:has(#tab-b-toggle:checked) #tab-b-content,
+.tabs-wrapper:has(#tab-c-toggle:checked) #tab-c-content {
+  display: block; /* Show content for active tab */
+}
+</style>
+</head>
+<body>
+Example of tabbed form pages done with just HTML
+<div class="tabs-wrapper">
+  <nav class="tabs-nav">
+    <label for="tab-a-toggle" class="tab-item">
+      <span>Tab A</span>
+      <input checked name="tabs-toggle" id="tab-a-toggle" type="radio">
+    </label>
+    <label for="tab-b-toggle" class="tab-item">
+      <span>Tab B</span>
+      <input name="tabs-toggle" id="tab-b-toggle" type="radio">
+    </label>
+    <label for="tab-c-toggle" class="tab-item">
+      <span>Tab C</span>
+      <input name="tabs-toggle" id="tab-c-toggle" type="radio">
+    </label>
+  </nav>
+
+  <div class="tab-content" id="tab-a-content">I am Tab A content</div>
+  <div class="tab-content" id="tab-b-content">I am Tab B content</div>
+  <div class="tab-content" id="tab-c-content">I am Tab C content</div>
+</div>
+
+</body>
+</html>

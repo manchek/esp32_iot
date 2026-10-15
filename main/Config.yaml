@@ -1,0 +1,31 @@
+#
+#  Configvar definitions
+#
+
+#
+#  all NVS namespaces must be defined before they can be used
+#
+namespaces:
+
+- wifi_config
+
+configvars:
+
+- name: wifi_pw
+  c_type: string_c
+  nv_type: STRING
+  default: ''
+  namespace: wifi_config
+  key: wfpw
+  max_length: 65
+  cached: yes
+
+- name: wifi_ssid
+  c_type: string_c
+  nv_type: STRING
+  default: ''
+  namespace: wifi_config
+  key: ssid
+  max_length: 33
+  cached: yes
+

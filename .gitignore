@@ -3,3 +3,5 @@ cscope.files
 cscope.out
 sdkconfig.old
 main/MediaFiles.c
+main/Config.c
+main/Config.h

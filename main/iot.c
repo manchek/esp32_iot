@@ -14,6 +14,7 @@
 #include "network.h"
 #include "portal.h"
 #include "nowfun.h"
+#include "Config.h"
 
 static const char *LOGTAG = "MAIN";
 
@@ -99,6 +100,7 @@ void app_main(void)
 		err = nvs_flash_init();
 	}
 	ESP_ERROR_CHECK(err);
+	config_init();
 
 	ESP_LOGI(LOGTAG, "Reset reason %d", esp_reset_reason());
 	dump_partitions();
@@ -123,7 +125,7 @@ void app_main(void)
 	while (true) {
 		static int last_heap_check = 0;
 		int now = esp_timer_get_time() / 1000000;
-		if (now - last_heap_check >= 10) {
+		if (now - last_heap_check >= 60) {
 			last_heap_check = now;
 			monitor_heap();
 
