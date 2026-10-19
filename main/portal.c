@@ -109,7 +109,7 @@ form_handler( httpd_req_t *req )
 	ESP_LOGI(LOGTAG, "form_handler method=%d uri=%s path=%.*s query=%s content=%d", req->method, req->uri, pathlen, path, (query ? query : "(none)"), req->content_len);
 
 	if (req->method == HTTP_POST && req->content_len > 0) {
-#if 1
+#if 0
 		char buf[256];
 		int done = 0;
 		int n;
@@ -131,8 +131,8 @@ form_handler( httpd_req_t *req )
 
 	httpd_resp_sendstr_chunk(req, page_header);
 	httpd_resp_sendstr_chunk(req,
-		//"<form method=\"post\" enctype=\"text/plain\">"
-		"<form method=\"post\">"
+		"<form method=\"post\" enctype=\"text/plain\">"
+		//"<form method=\"post\">"
 		"<table>"
 	);
 #if 1

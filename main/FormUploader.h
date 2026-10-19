@@ -1,6 +1,10 @@
 #ifndef FORM_UPLOADER_H
 #define FORM_UPLOADER_H
 
+/*
+ *  FormUploader - helper for digesting esp-idf httpd requests.
+ */
+
 #ifndef UNIT_TEST
 #include <esp_http_server.h>
 #endif
@@ -8,17 +12,13 @@
 #include <stdbool.h>
 
 /*
- *  FormUploader - helper for digesting esp-idf httpd requests.
- */
-
-/*
  *  context for uploading content from POSTing a form and processing.
- *  encoding should be text/plain for now (each value on a line)
  */
 
-typedef struct form_uploader {
+typedef struct FormUploader {
 	httpd_req_t *req;
 	bool eof;               // have we hit EOF reading document
+	uint8_t enc;            // encoding
 	int used;               // already-used length of buf
 	int buf_len;            // data length in buf
 	char buf[256];          // partial upload data. always \0 terminated.
