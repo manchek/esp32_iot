@@ -27,7 +27,7 @@ typedef struct FormUploader {
 /**
  *  initialize a FormUploader_t with a request so we can process it.
  */
-void formUploaderInit( FormUploader_t *ulr, httpd_req_t *req );
+void formUploaderInit( FormUploader_t *ulr, httpd_req_t *req, const char *enc );
 
 /**
  *  get the next key=value pair from the form upload.

@@ -108,59 +108,70 @@ form_handler( httpd_req_t *req )
 	const char *path = req->uri;
 	ESP_LOGI(LOGTAG, "form_handler method=%d uri=%s path=%.*s query=%s content=%d", req->method, req->uri, pathlen, path, (query ? query : "(none)"), req->content_len);
 
+	bool askscan = false;
 	if (req->method == HTTP_POST && req->content_len > 0) {
 #if 0
 		char buf[256];
 		int done = 0;
 		int n;
 
+		buf[0] = 0;
+		httpd_req_get_hdr_value_str(req, "Content-type", buf, sizeof(buf));
+		ESP_LOGI(LOGTAG, "Content-type: %s", buf);
 		while (done < req->content_len && (n = httpd_req_recv(req, buf, sizeof(buf)-1)) > 0) {
 			done += n;
 			ESP_LOGI(LOGTAG, "Request: %.*s", n, buf);
 		}
 #else
+		char ct[64];
+		ct[0] = 0;
+		httpd_req_get_hdr_value_str(req, "Content-type", ct, sizeof(ct));
+		ESP_LOGI(LOGTAG, "Content-type: %s", ct);
 		FormUploader_t upl;
-		formUploaderInit(&upl, req);
+		formUploaderInit(&upl, req, ct);
 		char *name;
 		char *value;
 		while (formUploaderNext(&upl, &name, &value)) {
 			ESP_LOGI(LOGTAG, "Post: %s = %s", name, value);
+			if (!strcmp("scan", name))
+				askscan = true;
 		}
 #endif
 	}
 
 	httpd_resp_sendstr_chunk(req, page_header);
 	httpd_resp_sendstr_chunk(req,
-		"<form method=\"post\" enctype=\"text/plain\">"
-		//"<form method=\"post\">"
+		//"<form method=\"post\" enctype=\"text/plain\">"
+		"<form method=\"post\">"
 		"<table>"
 	);
-#if 1
-	httpd_resp_sendstr_chunk(req,
-		"<tr><td>SSID</td><td><input type=\"text\" name=\"ssid\"><button name=\"scan\" value=\"1\">Scan WiFi</button></td></tr>"
-	);
-#else
-	//network_scan(true);
-	uint8_t num_ap = 0;
-	wifi_ap_record_t *aps = NULL;
-	network_scan_access_points(&num_ap, &aps);
-	httpd_resp_sendstr_chunk(req,
-		"<tr><td>SSID</td><td><input list=\"wifis\" name=\"ssid\"></td></tr>"
-		"<datalist id=\"wifis\">"
-	);
-	for (int i = 0; i < num_ap; i++) {
-		char buf[128];
-		snprintf(buf, sizeof(buf), "<option value=\"%s\">", aps[i].ssid);
-		httpd_resp_sendstr_chunk(req, buf);
+	if (askscan) {
+		//network_scan(true);
+		uint8_t num_ap = 0;
+		wifi_ap_record_t *aps = NULL;
+		network_scan_access_points(&num_ap, &aps);
+		httpd_resp_sendstr_chunk(req,
+			"<tr><td>SSID</td><td><input list=\"wifis\" name=\"ssid\"> -choose</td></tr>"
+			"<datalist id=\"wifis\">"
+		);
+		for (int i = 0; i < num_ap; i++) {
+			char buf[128];
+			snprintf(buf, sizeof(buf), "<option value=\"%s\">", aps[i].ssid);
+			httpd_resp_sendstr_chunk(req, buf);
+		}
+		httpd_resp_sendstr_chunk(req,
+			"</datalist>"
+		);
+	} else {
+		httpd_resp_sendstr_chunk(req,
+			"<tr><td>SSID</td><td><input type=\"text\" name=\"ssid\"></td></tr>"
+		);
 	}
-	httpd_resp_sendstr_chunk(req,
-		"</datalist>"
-	);
-#endif
 	httpd_resp_sendstr_chunk(req,
 		"<tr><td>Password</td><td><input type=\"text\" name=\"pass\"></td></tr>"
 		"</table>"
 		"<input type=\"submit\">"
+		"<button name=\"scan\" value=\"1\">Scan WiFi</button>"
 		"</form>"
 	);
 	httpd_resp_sendstr_chunk(req, page_footer);
