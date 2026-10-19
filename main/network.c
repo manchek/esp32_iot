@@ -9,6 +9,9 @@
 
 #include "network.h"
 
+#define MAX_WIFI_SSID_LENGTH    33
+#define MAX_WIFI_PW_LENGTH      65
+
 #define AP_NAME_LENGTH 20  // "AirCyclerConnectXXX\0"
 
 static const char *LOGTAG __attribute__((unused)) = "NET";
@@ -16,6 +19,10 @@ static const char *LOGTAG __attribute__((unused)) = "NET";
 static char ap_name[AP_NAME_LENGTH] = {0};
 static esp_netif_t *netif_ap_handle = NULL;
 static esp_netif_t *netif_sta_handle = NULL;
+static bool sta_enable = false;                 // Wifi STA should be up
+static bool sta_status = false;                 // Wifi STA connection status
+static char wifi_ssid[MAX_WIFI_SSID_LENGTH];    // for public net
+static char wifi_pw[MAX_WIFI_PW_LENGTH];        // for public net
 
 char *get_ap_name()
 {
@@ -61,7 +68,19 @@ wifi_event_handler( void *ctx, esp_event_base_t event_base, int32_t event_id, vo
 {
 	ESP_LOGI(LOGTAG, "WiFi event %d %d", event_base, event_id);
 
-	if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
+	if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED) {
+		sta_status = true;
+
+	} else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+		sta_status = false;
+		wifi_event_sta_disconnected_t *info = (wifi_event_sta_disconnected_t *)event_data;
+		ESP_LOGW(LOGTAG, "WiFi disconnected reason %d", (int)info->reason);
+
+		// if we're supposed to be up, try again
+		if (sta_enable)
+			esp_wifi_connect();
+
+	} else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
 		uint16_t n;
 		esp_wifi_scan_get_ap_num(&n);
 		ESP_LOGI(LOGTAG, "Found %d Wifi AP", (int)n);
@@ -96,31 +115,31 @@ void network_init()
 
 	ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
 
 	/*
 	 *  configure the AP
 	 */
 	wifi_config_t ap_config;
 	memset(&ap_config, 0, sizeof(ap_config));
-    strcpy((char*)ap_config.ap.ssid, get_ap_name());
-    //strcpy((char*)ap_config.ap.password, "xxxxxxxx");
-    //ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
-    ap_config.ap.authmode = WIFI_AUTH_OPEN;
+	strcpy((char*)ap_config.ap.ssid, get_ap_name());
+	//strcpy((char*)ap_config.ap.password, "xxxxxxxx");
+	//ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
+	ap_config.ap.authmode = WIFI_AUTH_OPEN;
 	ap_config.ap.ssid_hidden = 1;
-    ap_config.ap.max_connection = 8;  // max number of connected devices
-    //ap_config.ap.beacon_interval = 100;
+	ap_config.ap.max_connection = 8;  // max number of connected devices
+	//ap_config.ap.beacon_interval = 100;
 	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &ap_config));
 
-    ESP_ERROR_CHECK(esp_wifi_start());
+	ESP_ERROR_CHECK(esp_wifi_start());
 
 	/*
 	 *  configure the Station
 	 */
 	wifi_config_t sta_config;
 	memset(&sta_config, 0, sizeof(sta_config));
-    sta_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
-    sta_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
+	sta_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+	sta_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
 
 #if 0
 	const char *ssid = config_get_wifi_ssid();
@@ -159,5 +178,40 @@ void network_scan_access_points( uint8_t *count, wifi_ap_record_t **list )
 	esp_wifi_scan_start(NULL, true);
 	*count = ap_count;
 	*list = ap_list;
+}
+
+static void connect_to_public()
+{
+	ESP_LOGI(LOGTAG, "Connect to %s", wifi_ssid);
+	sta_enable = true;
+	wifi_config_t wifi_sta_config = { 0 };
+	strcpy((char*)wifi_sta_config.sta.ssid, wifi_ssid);
+	strcpy((char*)wifi_sta_config.sta.password, wifi_pw);
+	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config));
+	ESP_ERROR_CHECK(esp_wifi_connect());
+}
+
+void network_set_ssid( const char *ssid )
+{
+	int n = strlen(ssid) + 1;
+	if (n > sizeof(wifi_ssid))
+		n = sizeof(wifi_ssid);
+	memcpy(wifi_ssid, ssid, n);
+	wifi_ssid[n - 1] = 0;
+	if (wifi_ssid[0] && wifi_pw[0]) {
+		connect_to_public();
+	}
+}
+
+void network_set_pass( const char *pass )
+{
+	int n = strlen(pass) + 1;
+	if (n > sizeof(wifi_pw))
+		n = sizeof(wifi_pw);
+	memcpy(wifi_pw, pass, n);
+	wifi_pw[n - 1] = 0;
+	if (wifi_ssid[0] && wifi_pw[0]) {
+		connect_to_public();
+	}
 }
 

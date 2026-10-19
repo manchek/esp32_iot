@@ -135,6 +135,10 @@ form_handler( httpd_req_t *req )
 			ESP_LOGI(LOGTAG, "Post: %s = %s", name, value);
 			if (!strcmp("scan", name))
 				askscan = true;
+			else if (!strcmp("ssid", name))
+				network_set_ssid(value);
+			else if (!strcmp("pass", name))
+				network_set_pass(value);
 		}
 #endif
 	}
