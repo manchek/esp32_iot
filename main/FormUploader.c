@@ -1,9 +1,12 @@
 
 /*
- *  mocks for testing
+ *  FormUploader - helper for digesting esp-idf httpd requests.
  */
 
 #ifdef UNIT_TEST
+/*
+ *  mocks for testing
+ */
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -11,13 +14,13 @@
 
 typedef int esp_err_t;
 
+int verbose = 1;
+
 /*
  *  just enough of an http request to mock
  */
 struct httpd_req_s;
-
 typedef int (*recv_function)( struct httpd_req_s *r, char *buf, size_t buf_len );
-
 typedef struct httpd_req_s {
 	// public mock fields
 	size_t content_len;         // length of document
@@ -61,9 +64,6 @@ int httpd_req_recv( httpd_req_t *req, char *buf, size_t buflen )
 {
 	return req->recv(req, buf, buflen);
 }
-
-int verbose = 1;
-
 #endif /*UNIT_TEST*/
 
 #include "FormUploader.h"
@@ -252,8 +252,8 @@ struct testcase {
 	const char *name;
 	const char *document;
 	const char *encoding;
-	recv_function recv;
-	int exp_count;
+	recv_function recv;         // optional alternate function to simulate receive behavior
+	int exp_count;              // expected number of fields or -1 if unknown
 } tests[] = {
 	{ "Empty", "", "text/plain", NULL, 0 },
 	{ "Blank lines", "\r\n\r\n\r\n\r\n", "text/plain", NULL, 0 },

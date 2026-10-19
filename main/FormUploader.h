@@ -3,6 +3,9 @@
 
 /*
  *  FormUploader - helper for digesting esp-idf httpd requests.
+ *
+ *  we read the upload document body and parse it according to the given encoding.
+ *  key=value pairs can be extracted by repeatedly calling formUploaderNext().
  */
 
 #ifndef UNIT_TEST
@@ -26,12 +29,17 @@ typedef struct FormUploader {
 
 /**
  *  initialize a FormUploader_t with a request so we can process it.
+ *  encoding can be hardcoded or extracted from the Content-type header.
+ *  supported encodings are:
+ *    application/x-www-form-urlencoded
+ *    text/plain
  */
 void formUploaderInit( FormUploader_t *ulr, httpd_req_t *req, const char *enc );
 
 /**
  *  get the next key=value pair from the form upload.
  *  returns true when there is more data, else false.
+ *  when true, name and value return pointing to \0 terminated strings (possibly empty).
  */
 bool formUploaderNext( FormUploader_t *ulr, char **name, char **value );
 
