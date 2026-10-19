@@ -96,7 +96,7 @@ bool formUploaderNext( FormUploader_t *ulr, char **name, char **value )
 				*(eol - 1) = 0;
 			*eol++ = 0;
 			char *eq = strchr(ulr->buf, '=');
-			if (eq != NULL && eq > ulr->buf && *(eq + 1)) {
+			if (eq != NULL && eq > ulr->buf) {
 //printf("eol %d eq %d\n", eol - ulr->buf, eq - ulr->buf);
 				*eq = 0;
 				*name = ulr->buf;
@@ -149,7 +149,7 @@ struct testcase {
 	{ "Blank lines", "\r\n\r\n\r\n\r\n", NULL, 0 },
 	{ "Line of garbage", "Garbage\r\n", NULL, 0 },
 	{ "Missing key and value", "=\r\n", NULL, 0 },
-	{ "Missing value", "k=\r\n", NULL, 0 },
+	{ "Missing value", "k=\r\n", NULL, 1 },
 	{ "Missing key", "=v\r\n", NULL, 0 },
 	{ "Value with =", "key=value=with=equals\r\n", NULL, 1 },
 	{ "One value", "KEY=VALUE\r\n", NULL, 1 },
