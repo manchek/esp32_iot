@@ -93,16 +93,21 @@ static bool formUploaderNextPlain( FormUploader_t *ulr, char **name, char **valu
 			if (eol > ulr->buf && *(eol - 1) == '\r')
 				*(eol - 1) = 0;
 			*eol++ = 0;
-			char *eq = strchr(ulr->buf, '=');
-			if (eq != NULL && eq > ulr->buf) {
+			if (ulr->buf[0]) {
+				char *eq = strchr(ulr->buf, '=');
+				if (eq != NULL) {
 //printf("eol %d eq %d\n", eol - ulr->buf, eq - ulr->buf);
-				*eq = 0;
-				*name = ulr->buf;
-				*value = eq + 1;
+					*eq++ = 0;
+					*name = ulr->buf;
+					*value = eq;
+				} else {
+					*name = ulr->buf;
+					*value = eol - 1;
+				}
 				ulr->used = eol - ulr->buf;
 				return true;
 			}
-			/* if this line was broken (no =) skip past it */
+			/* if this line was empty skip past it */
 			ulr->buf_len -= eol - ulr->buf;
 			if (ulr->buf_len > 0)
 				memmove(ulr->buf, eol, ulr->buf_len);
@@ -183,13 +188,18 @@ static bool formUploaderNextUrl( FormUploader_t *ulr, char **name, char **value 
 				*eop++ = 0;
 			else
 				eop = ulr->buf + ulr->buf_len;
-			char *eq = strchr(ulr->buf, '=');
-			if (eq != NULL && eq > ulr->buf) {
-				*eq++ = 0;
-				urldecode(ulr->buf, ulr->buf);
-				urldecode(eq, eq);
-				*name = ulr->buf;
-				*value = eq;
+			if (ulr->buf[0]) {
+				char *eq = strchr(ulr->buf, '=');
+				if (eq != NULL) {
+					*eq++ = 0;
+					urldecode(ulr->buf, ulr->buf);
+					urldecode(eq, eq);
+					*name = ulr->buf;
+					*value = eq;
+				} else {
+					*name = ulr->buf;
+					*value = "";
+				}
 				ulr->used = eop - ulr->buf;
 				return true;
 			}
@@ -246,26 +256,30 @@ struct testcase {
 	int exp_count;
 } tests[] = {
 	{ "Empty", "", "text/plain", NULL, 0 },
+	{ "Blank lines", "\r\n\r\n\r\n\r\n", "text/plain", NULL, 0 },
 	{ "Nothing useful", "Garbage", "text/plain", NULL, 0 },
-	{ "Nothing useful", "Garbage\r\nand more garbage\nand more", "text/plain", NULL, 0 },
 	{ "Incomplete line", "=", "text/plain", NULL, 0 },
 	{ "Incomplete line", "k=", "text/plain", NULL, 0 },
 	{ "Incomplete line", "=v", "text/plain", NULL, 0 },
-	{ "Blank lines", "\r\n\r\n\r\n\r\n", "text/plain", NULL, 0 },
-	{ "Line of garbage", "Garbage\r\n", "text/plain", NULL, 0 },
-	{ "Missing key and value", "=\r\n", "text/plain", NULL, 0 },
-	{ "Missing value", "k=\r\n", "text/plain", NULL, 1 },
-	{ "Missing key", "=v\r\n", "text/plain", NULL, 0 },
-	{ "Value with =", "key=value=with=equals\r\n", "text/plain", NULL, 1 },
+	{ "No Value", "Name\r\n", "text/plain", NULL, 1 },
+	{ "Either Line Ending", "Name1\r\nName2=2\n", "text/plain", NULL, 2 },
+	{ "Trailing Garbage", "Name\r\nName2\nAnd more", "text/plain", NULL, 2 },
+	{ "Missing key and value", "=\r\n", "text/plain", NULL, 1 },
+	{ "Missing value", "KEY=\r\n", "text/plain", NULL, 1 },
+	{ "Missing key", "=VALUE\r\n", "text/plain", NULL, 1 },
 	{ "One value", "KEY=VALUE\r\n", "text/plain", NULL, 1 },
 	{ "Two values", "a=1\r\nb=2\r\n", "text/plain", NULL, 2 },
 	{ "More values", "one=1\r\nhundred=100\r\nwords=apple pie\r\n", "text/plain", NULL, 3 },
+	{ "Value with =", "key=value=with=equals\r\n", "text/plain", NULL, 1 },
 	{ "Reading single chars", "a=1\r\nb=2\r\n", "text/plain", httpd_req_recv_one, 2 },
 
-	{ "Missing key and value", "=", "application/x-www-form-urlencoded", NULL, 0 },
+	{ "Missing key and value", "=", "application/x-www-form-urlencoded", NULL, 1 },
 	{ "Missing value", "k=", "application/x-www-form-urlencoded", NULL, 1 },
-	{ "Missing key", "=v", "application/x-www-form-urlencoded", NULL, 0 },
+	{ "Missing key", "=v", "application/x-www-form-urlencoded", NULL, 1 },
 	{ "Empty", "", "application/x-www-form-urlencoded", NULL, 0 },
+	{ "Just a Key", "KEY", "application/x-www-form-urlencoded", NULL, 1 },
+	{ "Just Keys", "KEY1&KEY2&KEY3", "application/x-www-form-urlencoded", NULL, 3 },
+	{ "Segments Missing Parts", "&k1=v1&=&=v2&&k3=&&k4=v4&", "application/x-www-form-urlencoded", NULL, 5 },
 	{ "Value with =", "key=value=with=equals", "application/x-www-form-urlencoded", NULL, 1 },
 	{ "One value", "KEY=VALUE", "application/x-www-form-urlencoded", NULL, 1 },
 	{ "Two values", "a=1&b=2", "application/x-www-form-urlencoded", NULL, 2 },
