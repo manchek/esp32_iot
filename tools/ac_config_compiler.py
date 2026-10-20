@@ -621,7 +621,7 @@ def read_config_file(fname, spec = None):
 		spec.cfgfile = fname
 	with open(fname) as ff:
 		yo = yaml.safe_load(ff)
-		#print(yo)
+		print(yo)
 		if not yo \
 		or 'namespaces' not in yo \
 		or 'configvars' not in yo \

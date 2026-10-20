@@ -1,0 +1,28 @@
+<html>
+<head>
+<style>body {background-color:#fff5ee;font-family:Helvetica;}</style>
+<title>Login</title>
+</head>
+<body>
+VentCommander
+<hr>
+<form method="post" action="/login">
+<label for="user">Username: </label><input type="text" id="user" name="user"></input>
+<br>
+<label for="pw">Password: </label><input type="password" id="pw" name="pw"></input>
+<button type="button" onclick="togv()">*</button>
+<br>
+<input type="submit" value="Log In"></input>
+</form>
+</body>
+<script>
+function togv() {
+  var e = document.getElementById('pw')
+  if (e.type == 'text') {
+    e.type = 'password';
+  } else {
+    e.type = 'text';
+  }
+}
+</script>
+</html>

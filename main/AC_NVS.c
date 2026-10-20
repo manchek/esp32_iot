@@ -26,6 +26,24 @@ read_nvs_i8( const char *namespace, const char *key, int8_t defval )
 	return data;
 }
 
+uint8_t
+read_nvs_u8( const char *namespace, const char *key, uint8_t defval )
+{
+	uint8_t data = defval;
+	nvs_handle_t handle;
+	esp_err_t err = nvs_open(namespace, NVS_READONLY, &handle);
+	if (err != ESP_OK) {
+		ESP_LOGE(LOGTAG, "Open namespace %s failed: %d", namespace, err);
+	} else {
+		err = nvs_get_u8(handle, key, &data);
+		nvs_close(handle);
+		if (err != ESP_OK) {
+			ESP_LOGE(LOGTAG, "nvs_get_u8 %s::%s failed: %d", namespace, key, err);
+		}
+	}
+	return data;
+}
+
 int16_t
 read_nvs_i16( const char *namespace, const char *key, int16_t defval )
 {
@@ -124,6 +142,25 @@ save_nvs_i8( const char *namespace, const char *key, int8_t data )
 			ESP_LOGE(LOGTAG, "nvs_set_i8 %s::%s failed: %d", namespace, key, err);
 		} else {
 			ESP_LOGI(LOGTAG, "save_nvs_i8 %s::%s=%d", namespace, key, (int)data);
+		}
+	}
+	return err;
+}
+
+esp_err_t
+save_nvs_u8( const char *namespace, const char *key, uint8_t data )
+{
+	nvs_handle_t handle;
+	esp_err_t err = nvs_open(namespace, NVS_READWRITE, &handle);
+	if (err != ESP_OK) {
+		ESP_LOGE(LOGTAG, "Open namespace %s failed: %d", namespace, err);
+	} else {
+		err = nvs_set_u8(handle, key, data);
+		nvs_close(handle);
+		if (err != ESP_OK) {
+			ESP_LOGE(LOGTAG, "nvs_set_u8 %s::%s failed: %d", namespace, key, err);
+		} else {
+			ESP_LOGI(LOGTAG, "save_nvs_u8 %s::%s=%d", namespace, key, (int)data);
 		}
 	}
 	return err;
@@ -234,6 +271,30 @@ test_create_nvs_i8( nvs_handle_t handle, const char *key, int8_t defval )
 			ESP_LOGE(LOGTAG, "nvs_set_i8 %s failed: %d", key, err);
 		} else {
 			ESP_LOGI(LOGTAG, "test_create_nvs_i8 init %s = %d", key, defval);
+		}
+	}
+	return err;
+}
+
+esp_err_t
+test_create_nvs_u8( nvs_handle_t handle, const char *key, uint8_t defval )
+{
+	uint8_t data;
+	esp_err_t err = nvs_get_u8(handle, key, &data);
+	if (err != ESP_OK) {
+		ESP_LOGW(LOGTAG, "test nvs_get_u8 %s failed: %d", key, err);
+		esp_err_t err2;
+		if (err != ESP_ERR_NVS_NOT_FOUND) {
+			err2 = nvs_erase_key(handle, key);
+			if (err2 != ESP_OK) {
+				ESP_LOGE(LOGTAG, "nvs_erase_key %s failed: %d", key, err);
+			}
+		}
+		err2 = nvs_set_u8(handle, key, defval);
+		if (err2 != ESP_OK) {
+			ESP_LOGE(LOGTAG, "nvs_set_u8 %s failed: %d", key, err);
+		} else {
+			ESP_LOGI(LOGTAG, "test_create_nvs_u8 init %s = %d", key, defval);
 		}
 	}
 	return err;

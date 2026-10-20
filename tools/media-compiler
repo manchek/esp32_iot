@@ -52,7 +52,7 @@ class Media:
 		ff.write('\n'.join(lines))
 
 	def generate_mediafile(self, ff):
-		ff.write(f'  {{ "{self.filename}", "{self.mimetype}", {self.size}, {self.cname} }},\n')
+		ff.write(f'  {{ "{self.filename}", {len(self.filename)}, "{self.mimetype}", {self.size}, {self.cname} }},\n')
 
 medialist = []
 dirpath = pathlib.Path(mediafolder)
@@ -67,7 +67,8 @@ def generate_c(ff):
 		#include <string.h>
 
 		struct mediafile {
-			const char *filename;
+			const char *path;
+			int pathlen;
 			const char *mimetype;
 			int size;
 			const uint8_t *data;
@@ -91,8 +92,9 @@ def generate_c(ff):
 
 		bool find_media( const char *path, int pathlen, const char **mimetype, int *size, const uint8_t **data )
 		{
+			if (pathlen < 0) pathlen = strlen(path);
 			for (int i = 0; i < sizeof(media)/sizeof(media[0]); i++) {
-				if (pathlen == strlen(media[i].filename) && !strncmp(path, media[i].filename, pathlen)) {
+				if (pathlen == media[i].pathlen && !strncmp(path, media[i].path, pathlen)) {
 					*mimetype = media[i].mimetype;
 					*size = media[i].size;
 					*data = media[i].data;

@@ -7,6 +7,7 @@
 #include <esp_flash_partitions.h>
 #include <esp_ota_ops.h>
 #include <esp_timer.h>
+#include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <nvs_flash.h>
@@ -90,9 +91,42 @@ mark_image_valid()
 	}
 }
 
+/*
+ *  if "fdb" isn't present in flash, or its value is nonzero,
+ *  we're doing a factory reset boot. wipe flash and let
+ *  config_init set up new defaults.
+ */
+void
+check_factory_boot()
+{
+	ESP_LOGI(LOGTAG, "check_factory_boot");
+	nvs_handle_t handle;
+	esp_err_t err = nvs_open(CONFIG_NAMESPACE_SYSTEM_CONFIG, NVS_READONLY, &handle);
+	uint8_t fdb = 0;
+	if (err != ESP_OK) {
+		ESP_LOGI(LOGTAG, "nvs_open %d", err);
+	} else {
+		err = nvs_get_u8(handle, CONFIG_FACTORY_DEFAULT_BOOT_KEY, &fdb);
+		if (err != ESP_OK) {
+			ESP_LOGI(LOGTAG, "nvs_get_u8 %d", err);
+		}
+		nvs_close(handle);
+	}
+	if (err != ESP_OK || fdb) {
+		ESP_LOGW(LOGTAG, "Reset NVS to factory defaults");
+		ESP_ERROR_CHECK(nvs_flash_erase());
+		ESP_ERROR_CHECK(nvs_flash_init());
+		//checkAdd(CCODE_FACTORY_RESET);
+	}
+}
+
 void app_main(void)
 {
-	vTaskDelay(pdMS_TO_TICKS(2000));
+	vTaskDelay(pdMS_TO_TICKS(2000));  // XXX so we can get console started
+
+	ESP_LOGI(LOGTAG, "Reset reason %d", esp_reset_reason());
+	dump_partitions();
+	check_running_partition();
 
 	esp_err_t err = nvs_flash_init();
 	if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -100,11 +134,22 @@ void app_main(void)
 		err = nvs_flash_init();
 	}
 	ESP_ERROR_CHECK(err);
-	config_init();
+	int button_count = 0;
+	for (int i = 0; i < 100; i++) {
+		if (!gpio_get_level(GPIO_NUM_0))
+			++button_count;
+		vTaskDelay(pdMS_TO_TICKS(20));
+	}
+	ESP_LOGI(LOGTAG, "Button count %d", button_count);
+	if (button_count > 50) {
+		ESP_LOGW(LOGTAG, "Factory reset triggered");
+		config_set_factory_default_boot(1);
+		vTaskDelay(pdMS_TO_TICKS(2000));
+		esp_restart();
+	}
 
-	ESP_LOGI(LOGTAG, "Reset reason %d", esp_reset_reason());
-	dump_partitions();
-	check_running_partition();
+	check_factory_boot();  // this must come before config_init
+	config_init();
 
 /*
 	ESP_ERROR_CHECK(esp_flash_init(NULL));

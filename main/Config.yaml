@@ -7,9 +7,18 @@
 #
 namespaces:
 
+- system_config
 - wifi_config
 
 configvars:
+
+- name: factory_default_boot
+  c_type: uint8_t
+  nv_type: U8
+  default: 0
+  namespace: system_config
+  key: fdb
+  description: 'Normally 0. Set to 1 to initiate factory default reset of NVRAM on next boot.'
 
 - name: wifi_pw
   c_type: string_c

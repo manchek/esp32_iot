@@ -1,0 +1,18 @@
+<html>
+<head>
+<style>body {background-color:#fff5ee;font-family:Helvetica;}</style>
+<title>Logout</title>
+</head>
+<body>
+You are now logged out.
+<br>
+<a href="/login">Log In</a>
+</body>
+<script>
+window.onload = function () {
+  setTimeout(() => {
+    window.location = window.location.protocol + '//' + window.location.host;
+  }, 5000);
+}
+</script>
+</html>

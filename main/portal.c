@@ -2,6 +2,7 @@
 #include <string.h>
 #include <esp_log.h>
 #include <esp_http_server.h>
+#include <esp_timer.h>
 #include "portal.h"
 #include "network.h"
 #include "FormUploader.h"
@@ -15,6 +16,8 @@ static httpd_handle_t httpd_handle = NULL;
 static esp_err_t media_handler( httpd_req_t *req );
 static esp_err_t debug_handler( httpd_req_t *req );
 static esp_err_t form_handler( httpd_req_t *req );
+static esp_err_t login_handler( httpd_req_t *req );
+static esp_err_t logout_handler( httpd_req_t *req );
 
 #if 0
 static httpd_uri_t root_page = {
@@ -29,6 +32,20 @@ static httpd_uri_t media_base_uri = {
 	.uri      = "/*",
 	.method   = HTTP_GET,
 	.handler  = media_handler,
+	.user_ctx = NULL
+};
+
+static httpd_uri_t login_uri = {
+	.uri      = "/login",
+	.method   = HTTP_ANY,
+	.handler  = login_handler,
+	.user_ctx = NULL
+};
+
+static httpd_uri_t logout_uri = {
+	.uri      = "/logout",
+	.method   = HTTP_ANY,
+	.handler  = logout_handler,
 	.user_ctx = NULL
 };
 
@@ -80,6 +97,33 @@ root_handler( httpd_req_t *req )
 
 #define MEDIA_PREFIX_LEN 1  // "/"
 
+static char login_token[20];
+
+static bool
+check_login( httpd_req_t *req )
+{
+	char token[64];
+	token[0] = '!';
+	token[1] = 0;
+	size_t tok_len = sizeof(token);
+	esp_err_t err = httpd_req_get_cookie_val(req, "VCDR_TOKEN", token, &tok_len);
+	ESP_LOGI(LOGTAG, "VCDR_TOKEN len %d token \"%s\" err %d : %s", tok_len, token, err, esp_err_to_name(err));
+	if (strcmp(token, login_token)) {
+		const char *mimetype;
+		int size;
+		const uint8_t *data;
+		if (find_media("login.html", 10, &mimetype, &size, &data)) {
+			httpd_resp_set_type(req, mimetype);
+			httpd_resp_send(req, (char *)data, size);
+		} else {
+			httpd_resp_set_status(req, "500 Internal Server Error");
+			httpd_resp_send(req, "", 0);
+		}
+		return false;
+	}
+	return true;
+}
+
 static esp_err_t
 debug_handler( httpd_req_t *req )
 {
@@ -97,8 +141,67 @@ debug_handler( httpd_req_t *req )
 }
 
 static esp_err_t
+login_handler( httpd_req_t *req )
+{
+	if (req->method == HTTP_POST && req->content_len > 0) {
+		char ct[64];
+		ct[0] = 0;
+		httpd_req_get_hdr_value_str(req, "Content-type", ct, sizeof(ct));
+		ESP_LOGI(LOGTAG, "Content-type: %s", ct);
+		FormUploader_t upl;
+		formUploaderInit(&upl, req, ct);
+		char *name;
+		char *value;
+		while (formUploaderNext(&upl, &name, &value)) {
+			ESP_LOGI(LOGTAG, "Post: %s = %s", name, value);
+		}
+
+		snprintf(login_token, sizeof(login_token), "%016llx", esp_timer_get_time());
+		ESP_LOGI(LOGTAG, "Generate login token %s", login_token);
+		char cookie[64];
+		snprintf(cookie, sizeof(cookie), "VCDR_TOKEN=%s; Path=/", login_token);
+		esp_err_t err = httpd_resp_set_hdr(req, "Set-Cookie", cookie);
+		ESP_LOGI(LOGTAG, "httpd_resp_set_hdr : %d : %s", err, esp_err_to_name(err));
+		const char *mimetype;
+		int size;
+		const uint8_t *data;
+		if (find_media("login_success.html", 18, &mimetype, &size, &data)) {
+			httpd_resp_set_type(req, mimetype);
+			httpd_resp_send(req, (char *)data, size);
+			return ESP_OK;
+		}
+	}
+	httpd_resp_set_status(req, "500 Internal Server Error");
+	httpd_resp_send(req, "", 0);
+	return ESP_OK;
+}
+
+static esp_err_t
+logout_handler( httpd_req_t *req )
+{
+	char cookie[64];
+	snprintf(cookie, sizeof(cookie), "VCDR_TOKEN=x; Max-Age=0");
+	esp_err_t err = httpd_resp_set_hdr(req, "Set-Cookie", cookie);
+	ESP_LOGI(LOGTAG, "httpd_resp_set_hdr : %d : %s", err, esp_err_to_name(err));
+	const char *mimetype;
+	int size;
+	const uint8_t *data;
+	if (find_media("logout.html", 11, &mimetype, &size, &data)) {
+		httpd_resp_set_type(req, mimetype);
+		httpd_resp_send(req, (char *)data, size);
+		return ESP_OK;
+	}
+	httpd_resp_set_status(req, "500 Internal Server Error");
+	httpd_resp_send(req, "", 0);
+	return ESP_OK;
+}
+
+static esp_err_t
 form_handler( httpd_req_t *req )
 {
+	if (!check_login(req))
+		return ESP_OK;
+
 	int pathlen;
 	const char *query;
 	if ((query = strchr(req->uri, '?')) != NULL)
@@ -186,6 +289,9 @@ form_handler( httpd_req_t *req )
 static esp_err_t
 media_handler( httpd_req_t *req )
 {
+	if (!check_login(req))
+		return ESP_OK;
+
 	int pathlen;
 	const char *query;
 	if ((query = strchr(req->uri, '?')) != NULL)
@@ -241,6 +347,10 @@ portal_enable( bool onoff )
 		 *  register handlers from specific to wildcard
 		 */
 		esp_err_t rc;
+		rc = httpd_register_uri_handler(httpd_handle, &login_uri);
+		ESP_LOGI(LOGTAG, "Register %s handler : %s", login_uri.uri, esp_err_to_name(rc));
+		rc = httpd_register_uri_handler(httpd_handle, &logout_uri);
+		ESP_LOGI(LOGTAG, "Register %s handler : %s", logout_uri.uri, esp_err_to_name(rc));
 		rc = httpd_register_uri_handler(httpd_handle, &form_uri);
 		ESP_LOGI(LOGTAG, "Register %s handler : %s", form_uri.uri, esp_err_to_name(rc));
 		rc = httpd_register_uri_handler(httpd_handle, &media_base_uri);

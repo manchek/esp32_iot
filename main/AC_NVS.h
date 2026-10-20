@@ -24,6 +24,7 @@
  *  for blobs it is an in/out param returning the actual length.
  */
 int8_t read_nvs_i8( const char *namespace, const char *key, int8_t defval );
+uint8_t read_nvs_u8( const char *namespace, const char *key, uint8_t defval );
 int16_t read_nvs_i16( const char *namespace, const char *key, int16_t defval );
 int32_t read_nvs_i32( const char *namespace, const char *key, int32_t defval );
 esp_err_t read_nvs_string( const char *namespace, const char *key, char *data, size_t maxlen );
@@ -33,6 +34,7 @@ esp_err_t read_nvs_blob( const char *namespace, const char *key, void *data, siz
  *  save functions are pretty simple by comparison.
  */
 esp_err_t save_nvs_i8( const char *namespace, const char *key, int8_t data );
+esp_err_t save_nvs_u8( const char *namespace, const char *key, uint8_t data );
 esp_err_t save_nvs_i16( const char *namespace, const char *key, int16_t data );
 esp_err_t save_nvs_i32( const char *namespace, const char *key, int32_t data );
 esp_err_t save_nvs_string( const char *namespace, const char *key, const char *data );
@@ -48,6 +50,7 @@ esp_err_t save_nvs_blob( const char *namespace, const char *key, const void *dat
  *  anything else indicates function attempted to fix things using default.
  */
 esp_err_t test_create_nvs_i8( nvs_handle_t h, const char *key, int8_t defval );
+esp_err_t test_create_nvs_u8( nvs_handle_t h, const char *key, uint8_t defval );
 esp_err_t test_create_nvs_i16( nvs_handle_t h, const char *key, int16_t defval );
 esp_err_t test_create_nvs_i32( nvs_handle_t h, const char *key, int32_t defval );
 esp_err_t test_create_nvs_string( nvs_handle_t h, const char *key, size_t maxlen, const char *defval );
