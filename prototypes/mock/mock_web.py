@@ -51,7 +51,7 @@ class C(http.server.BaseHTTPRequestHandler):
 		if path == '/logout':
 			self.serve_logout()
 		elif self.cookies.get('acsession') != token:
-			self.serve_login()
+			self.serve_static('/login.html')
 		else:
 			self.serve_static(path)
 
@@ -72,43 +72,35 @@ class C(http.server.BaseHTTPRequestHandler):
 		if args.get('user') == 'bob' and args.get('pw') == 'obo':
 			self.send_response(200)
 			self.send_header("Set-Cookie", "acsession=" + token + "; Path=/")
-			self.serve_file('/login_success.html')
+			self.serve_static('/login_success.html')
 		else:
 			self.serve_static('/deny.html')
 
 	def serve_logout(self):
 		self.send_response(200)
 		self.send_header("Set-Cookie", "acsession=x; Max-Age=0")
-		self.serve_file('/logout.html')
+		self.serve_static('/logout.html')
 
-	def serve_login(self):
-		self.serve_static('/login.html')
-
-	def serve_file(self, path):
-		try:
-			with open('media/' + path) as f:
-				data = f.read()
-				body = bytes(data, 'utf-8')
-				self.send_header("Content-type", "text/html")
-				self.end_headers()
-				self.wfile.write(body)
-		except:
-			self.send_header("Content-type", "text/plain")
-			self.end_headers()
-			self.wfile.write(bytes())
-
+	# serve a file from the media folder, or a 404 if no such path
 	def serve_static(self, path):
+		# this should be static. would also like to use magic, but can't depend on it
+		extmap = {
+			'.html' : 'text/html',
+			'.css' : 'text/css',
+			'.png' : 'image/png',
+		}
 		try:
-			with open('media/' + path) as f:
-				data = f.read()
-				body = bytes(data, 'utf-8')
+			with open('media/' + path, 'rb') as f:
+				body = f.read()
+				(pathfile, ext) = os.path.splitext(path)
+				mtype = extmap.get(ext, 'text/plain')
 				self.send_response(200)
-				self.send_header("Content-type", "text/html")
+				self.send_header('Content-type', mtype)
 				self.end_headers()
 				self.wfile.write(body)
 		except:
 			self.send_response(404)
-			self.send_header("Content-type", "text/plain")
+			self.send_header('Content-type', 'text/plain')
 			self.end_headers()
 			self.wfile.write(bytes())
 

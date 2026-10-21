@@ -1,0 +1,81 @@
+body {
+  font-family: 'Trebuchet MS', Arial, Verdana, Tahoma, sans-serif;
+  background: #000000;
+  padding: 1rem;
+}
+#outside {
+  display: grid;
+  grid-template-rows: 100px auto 50px;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 1rem;
+  height: 90vh;
+  border-radius: 16px;
+  background: #e0d8d0;
+}
+#header {
+  border-radius: 16px 16px 0 0;
+  text-align: center;
+  font-size: 2rem;
+  background: #fff5ee;
+}
+#main {
+  font-size: 2rem;
+  text-align: center;
+}
+.ntab {
+  width: 100%;
+}
+.ntab button {
+  width: 100%;
+  padding: 1.5rem 0 1.5rem 0;
+  border-radius: 16px 16px 0 0;
+  font-size: 1.5rem;
+  border-style: none;
+  background: #d0c8c0;
+}
+.ntab td {
+  text-align: center;
+}
+.ntab button:hover {
+  background: #e0d8d0;
+}
+#ntabs {
+  background: #fff5ee;
+}
+a {
+  text-decoration : none;
+  color: #000000;
+  background: #e0f0ff;
+}
+a:hover {
+  background: #c0ffc0;
+}
+.explain {
+  text-align: left;
+  font-size: 1rem;
+  background: #e0ffe0;
+}
+#bpanl {
+  padding-top: 100px;
+  display: grid;
+  grid-template-columns: auto;
+}
+.bigbut {
+  padding: 14px 28px;
+  border-radius: 8px;
+  border-width: 2px;
+  font-size: 2rem;
+  background: #c0c0c0;
+}
+.bigbut:hover {
+  background: #e0e0e0;
+}
+#footer {
+  border-radius: 0 0 16px 16px;
+  background: #fff5ee;
+}
+.ftab {
+  width: 100%
+}
+
