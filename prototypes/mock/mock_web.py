@@ -69,7 +69,8 @@ class C(http.server.BaseHTTPRequestHandler):
 		else:
 			args = extract_query('')
 
-		if args.get('user') == 'bob' and args.get('pw') == 'obo':
+		#if args.get('user') == 'bob' and args.get('pw') == 'obo':
+		if args.get('pw') == 'admin':
 			self.send_response(200)
 			self.send_header("Set-Cookie", "acsession=" + token + "; Path=/")
 			self.serve_static('/login_success.html')
