@@ -14,7 +14,7 @@ static httpd_handle_t httpd_handle = NULL;
 
 //static esp_err_t root_handler( httpd_req_t *req );
 static esp_err_t media_handler( httpd_req_t *req );
-static esp_err_t debug_handler( httpd_req_t *req );
+//static esp_err_t debug_handler( httpd_req_t *req );
 static esp_err_t form_handler( httpd_req_t *req );
 static esp_err_t login_handler( httpd_req_t *req );
 static esp_err_t logout_handler( httpd_req_t *req );
@@ -124,6 +124,7 @@ check_login( httpd_req_t *req )
 	return true;
 }
 
+#if 0
 static esp_err_t
 debug_handler( httpd_req_t *req )
 {
@@ -139,6 +140,7 @@ debug_handler( httpd_req_t *req )
 	httpd_resp_send(req, "", 0);
 	return ESP_OK;
 }
+#endif
 
 static esp_err_t
 login_handler( httpd_req_t *req )
