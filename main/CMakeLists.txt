@@ -2,7 +2,7 @@
 set(CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/Config.yaml)
 set(GENERATED_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/Config.c)
 
-set(GENERATED_C ${CMAKE_CURRENT_SOURCE_DIR}/MediaFiles.c)
+set(GENERATED_MEDIA ${CMAKE_CURRENT_SOURCE_DIR}/MediaFilesData.h)
 
 idf_component_register(
 	SRCS
@@ -11,7 +11,8 @@ idf_component_register(
 		"nowfun.c"
 		"portal.c"
 		"FormUploader.c"
-		${GENERATED_C}
+		"MediaFiles.c"
+		${GENERATED_MEDIA}
 		${GENERATED_CONFIG}
 		"AC_NVS.c"
 	INCLUDE_DIRS
@@ -20,8 +21,8 @@ idf_component_register(
 
 # must be after idf_component_register, or protected with NOT CMAKE_BUILD_EARLY_EXPANSION
 add_custom_command(
-	OUTPUT ${GENERATED_C}
-	COMMAND ${CMAKE_SOURCE_DIR}/tools/media-compiler -o ${GENERATED_C} ${CMAKE_SOURCE_DIR}/media
+	OUTPUT ${GENERATED_MEDIA}
+	COMMAND ${CMAKE_SOURCE_DIR}/tools/media-compiler -o ${GENERATED_MEDIA} ${CMAKE_SOURCE_DIR}/media
 	DEPENDS ${CMAKE_SOURCE_DIR}/tools/media-compiler
 	COMMENT "Generating media from files"
 )

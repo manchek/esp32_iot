@@ -1,19 +1,56 @@
 <html>
 <head>
-<style>body {background-color:#fff5ee;font-family:Helvetica;}</style>
 <title>Login</title>
+<style>
+body {
+  font-family: 'Trebuchet MS', Arial, Verdana, Tahoma, sans-serif;
+  background: #000000;
+  padding: 1rem;
+}
+#outside {
+  display: grid;
+  grid-template-rows: 100px auto 50px;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 1rem;
+  height: 90vh;
+  border-radius: 16px;
+  background: #e0d8d0;
+}
+#header {
+  border-radius: 16px 16px 0 0;
+  text-align: center;
+  font-size: 2rem;
+  background: #fff5ee;
+}
+#main {
+  font-size: 2rem;
+  text-align: center;
+}
+#footer {
+  border-radius: 0 0 16px 16px;
+  background: #fff5ee;
+}
+.ftab {
+  width: 100%
+}
+</style>
 </head>
 <body>
-VentCommander
-<hr>
-<form method="post" action="/login">
-<label for="user">Username: </label><input type="text" id="user" name="user"></input>
-<br>
-<label for="pw">Password: </label><input type="password" id="pw" name="pw"></input>
-<button type="button" onclick="togv()">*</button>
-<br>
-<input type="submit" value="Log In"></input>
-</form>
+  <div id="outside">
+    <div id="header">
+    VentCommander
+    </div>
+    <div id="main">
+      <form method="post" action="/login">
+      <label for="pw">Password: </label><input type="password" id="pw" name="pw"></input>
+      <button type="button" onclick="togv()">*</button>
+      </form>
+    </div>
+    <div id="footer">
+      <table class="ftab"><tr><td>1.0.2</td><td>Up 1h30m</td><td>192.168.5.22</td><td></td></tr></table>
+    </div>
+  </div>
 </body>
 <script>
 function togv() {

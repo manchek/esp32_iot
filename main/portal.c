@@ -12,93 +12,25 @@ static const char *LOGTAG = "PORTAL";
 
 static httpd_handle_t httpd_handle = NULL;
 
-//static esp_err_t root_handler( httpd_req_t *req );
-static esp_err_t media_handler( httpd_req_t *req );
-//static esp_err_t debug_handler( httpd_req_t *req );
-static esp_err_t form_handler( httpd_req_t *req );
-static esp_err_t login_handler( httpd_req_t *req );
-static esp_err_t logout_handler( httpd_req_t *req );
+/** single handler for all requests */
+static esp_err_t base_handler( httpd_req_t *req );
 
-#if 0
-static httpd_uri_t root_page = {
-	.uri      = "/",
-	.method   = HTTP_GET,
-	.handler  = root_handler,
-	.user_ctx = NULL
-};
-#endif
-
-static httpd_uri_t media_base_uri = {
+static httpd_uri_t base_uri = {
 	.uri      = "/*",
-	.method   = HTTP_GET,
-	.handler  = media_handler,
-	.user_ctx = NULL
-};
-
-static httpd_uri_t login_uri = {
-	.uri      = "/login",
 	.method   = HTTP_ANY,
-	.handler  = login_handler,
+	.handler  = base_handler,
 	.user_ctx = NULL
 };
-
-static httpd_uri_t logout_uri = {
-	.uri      = "/logout",
-	.method   = HTTP_ANY,
-	.handler  = logout_handler,
-	.user_ctx = NULL
-};
-
-static httpd_uri_t form_uri = {
-	.uri      = "/config.html",
-	.method   = HTTP_ANY,
-	.handler  = form_handler,
-	.user_ctx = NULL
-};
-
-static const char *page_header =
-	"<html>"
-	"<head>"
-	"<link rel=\"stylesheet\" type=\"text/css\" href=\"pages.css\">"
-	"</head>"
-	"<body>"
-	;
-
-static const char *page_footer =
-	"</body>"
-	"</html>"
-	;
-
-#if 0
-static const char *root_html =
-"<img src=\"/media/logo.png\">"
-"<hr>"
-"Portal test page"
-;
-
-static esp_err_t
-root_handler( httpd_req_t *req )
-{
-	ESP_LOGI(LOGTAG, "root_handler");
-/*
- *      httpd_resp_set_status() - for setting the HTTP status string,
- *      httpd_resp_set_type()   - for setting the Content Type,
- *      httpd_resp_set_hdr()    - for appending any additional field
- *                                value entries in the response header
-*/
-	//httpd_resp_send(req, root_html, strlen(root_html));
-	httpd_resp_sendstr_chunk(req, page_header);
-	httpd_resp_sendstr_chunk(req, root_html);
-	httpd_resp_sendstr_chunk(req, page_footer);
-	httpd_resp_send_chunk(req, NULL, 0);
-	return ESP_OK;
-}
-#endif
 
 #define MEDIA_PREFIX_LEN 1  // "/"
 
 static char login_token[20];
 
+/**
+ *  verify login token in request cookies against our active token.
+ *  if not found or mismatch, actually serve the login page.
+ *  returns true if logged in, else false (and the caller should simply return).
+ */
 static bool
 check_login( httpd_req_t *req )
 {
@@ -112,7 +44,7 @@ check_login( httpd_req_t *req )
 		const char *mimetype;
 		int size;
 		const uint8_t *data;
-		if (find_media("login.html", 10, &mimetype, &size, &data)) {
+		if (find_media("login.html", &mimetype, &size, &data)) {
 			httpd_resp_set_type(req, mimetype);
 			httpd_resp_send(req, (char *)data, size);
 		} else {
@@ -123,24 +55,6 @@ check_login( httpd_req_t *req )
 	}
 	return true;
 }
-
-#if 0
-static esp_err_t
-debug_handler( httpd_req_t *req )
-{
-	int pathlen;
-	const char *query;
-	if ((query = strchr(req->uri, '?')) != NULL)
-		pathlen = query - req->uri;
-	else
-		pathlen = strlen(req->uri);
-	const char *path = req->uri;
-	ESP_LOGI(LOGTAG, "debug_handler uri=%s path=%.*s query=%s", req->uri, pathlen, path, (query ? query : "(none)"));
-	httpd_resp_set_status(req, "404 Not Found");
-	httpd_resp_send(req, "", 0);
-	return ESP_OK;
-}
-#endif
 
 static esp_err_t
 login_handler( httpd_req_t *req )
@@ -154,23 +68,33 @@ login_handler( httpd_req_t *req )
 		formUploaderInit(&upl, req, ct);
 		char *name;
 		char *value;
+		bool valid = false;
 		while (formUploaderNext(&upl, &name, &value)) {
 			ESP_LOGI(LOGTAG, "Post: %s = %s", name, value);
+			if (!strcmp(name, "pw") && !strcmp(value, "admin"))
+				valid = true;
 		}
 
-		snprintf(login_token, sizeof(login_token), "%016llx", esp_timer_get_time());
-		ESP_LOGI(LOGTAG, "Generate login token %s", login_token);
-		char cookie[64];
-		snprintf(cookie, sizeof(cookie), "VCDR_TOKEN=%s; Path=/", login_token);
-		esp_err_t err = httpd_resp_set_hdr(req, "Set-Cookie", cookie);
-		ESP_LOGI(LOGTAG, "httpd_resp_set_hdr : %d : %s", err, esp_err_to_name(err));
 		const char *mimetype;
 		int size;
 		const uint8_t *data;
-		if (find_media("login_success.html", 18, &mimetype, &size, &data)) {
-			httpd_resp_set_type(req, mimetype);
-			httpd_resp_send(req, (char *)data, size);
-			return ESP_OK;
+
+		if (valid) {
+			char cookie[64];
+			snprintf(cookie, sizeof(cookie), "VCDR_TOKEN=%s; Path=/", login_token);
+			esp_err_t err = httpd_resp_set_hdr(req, "Set-Cookie", cookie);
+			ESP_LOGI(LOGTAG, "httpd_resp_set_hdr : %d : %s", err, esp_err_to_name(err));
+			if (find_media("login_success.html", &mimetype, &size, &data)) {
+				httpd_resp_set_type(req, mimetype);
+				httpd_resp_send(req, (char *)data, size);
+				return ESP_OK;
+			}
+		} else {
+			if (find_media("deny.html", &mimetype, &size, &data)) {
+				httpd_resp_set_type(req, mimetype);
+				httpd_resp_send(req, (char *)data, size);
+				return ESP_OK;
+			}
 		}
 	}
 	httpd_resp_set_status(req, "500 Internal Server Error");
@@ -188,7 +112,7 @@ logout_handler( httpd_req_t *req )
 	const char *mimetype;
 	int size;
 	const uint8_t *data;
-	if (find_media("logout.html", 11, &mimetype, &size, &data)) {
+	if (find_media("logout.html", &mimetype, &size, &data)) {
 		httpd_resp_set_type(req, mimetype);
 		httpd_resp_send(req, (char *)data, size);
 		return ESP_OK;
@@ -198,6 +122,7 @@ logout_handler( httpd_req_t *req )
 	return ESP_OK;
 }
 
+#if 0
 static esp_err_t
 form_handler( httpd_req_t *req )
 {
@@ -287,24 +212,21 @@ form_handler( httpd_req_t *req )
 	httpd_resp_send_chunk(req, NULL, 0);
 	return ESP_OK;
 }
+#endif
 
 static esp_err_t
 media_handler( httpd_req_t *req )
 {
-	if (!check_login(req))
-		return ESP_OK;
-
-	int pathlen;
-	const char *query;
-	if ((query = strchr(req->uri, '?')) != NULL)
-		pathlen = query - req->uri;
-	else
-		pathlen = strlen(req->uri);
 	const char *path = req->uri;
-	ESP_LOGI(LOGTAG, "media_handler uri=%s path=%.*s query=%s", req->uri, pathlen, path, (query ? query : "(none)"));
+	const char *query;
+	int pathlen;
+	if ((query = strchr(path, '?')) != NULL)
+		pathlen = query - path;
+	else
+		pathlen = strlen(path);
 
 	if (pathlen == 1) {
-		path = "/test_page.html";
+		path = "/default.html";
 		pathlen = strlen(path);
 	}
 
@@ -312,7 +234,7 @@ media_handler( httpd_req_t *req )
 		const char *mimetype;
 		int size;
 		const uint8_t *data;
-		if (find_media(path + MEDIA_PREFIX_LEN, pathlen - MEDIA_PREFIX_LEN, &mimetype, &size, &data)) {
+		if (find_media_len(path + MEDIA_PREFIX_LEN, pathlen - MEDIA_PREFIX_LEN, &mimetype, &size, &data)) {
 			httpd_resp_set_type(req, mimetype);
 			httpd_resp_send(req, (char *)data, size);
 			return ESP_OK;
@@ -329,10 +251,49 @@ media_handler( httpd_req_t *req )
 	return ESP_OK;
 }
 
+static esp_err_t
+base_handler( httpd_req_t *req )
+{
+	const char *path = req->uri;
+	const char *query;
+	int pathlen;
+	if ((query = strchr(path, '?')) != NULL)
+		pathlen = query - path;
+	else
+		pathlen = strlen(path);
+	ESP_LOGI(LOGTAG, "base_handler method=%s uri=%s path=%.*s query=%s", http_method_str(req->method), req->uri, pathlen, path, (query ? query : "(none)"));
+
+	/*
+	 *  if not logged in, we serve only the login page
+	 */
+	if (pathlen == 6 && !strncmp(path, "/login", 6) && req->method == HTTP_POST)
+		return login_handler(req);
+	if (!check_login(req))
+		return ESP_OK;
+
+	/*
+	 *  handle dynamically generated pages
+	 */
+	if (pathlen == 7 && !strncmp(path, "/logout", 7))
+		return logout_handler(req);
+
+	/*
+	 *  then static content
+	 */
+	return media_handler(req);
+}
+
 esp_err_t
 portal_init()
 {
 	return ESP_OK;
+}
+
+void
+portal_generate_login_token()
+{
+	snprintf(login_token, sizeof(login_token), "%016llx", esp_timer_get_time());
+	ESP_LOGI(LOGTAG, "Generate login token %s", login_token);
 }
 
 esp_err_t
@@ -342,21 +303,18 @@ portal_enable( bool onoff )
 		if (httpd_handle != NULL)
 			return ESP_ERR_INVALID_STATE;
 		ESP_LOGI(LOGTAG, "Start portal");
+		if (!login_token[0])
+			portal_generate_login_token();  // for now
 		httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+		config.max_uri_handlers = 1;
 		config.uri_match_fn = httpd_uri_match_wildcard;
 		ESP_ERROR_CHECK(httpd_start(&httpd_handle, &config));
 		/*
 		 *  register handlers from specific to wildcard
 		 */
 		esp_err_t rc;
-		rc = httpd_register_uri_handler(httpd_handle, &login_uri);
-		ESP_LOGI(LOGTAG, "Register %s handler : %s", login_uri.uri, esp_err_to_name(rc));
-		rc = httpd_register_uri_handler(httpd_handle, &logout_uri);
-		ESP_LOGI(LOGTAG, "Register %s handler : %s", logout_uri.uri, esp_err_to_name(rc));
-		rc = httpd_register_uri_handler(httpd_handle, &form_uri);
-		ESP_LOGI(LOGTAG, "Register %s handler : %s", form_uri.uri, esp_err_to_name(rc));
-		rc = httpd_register_uri_handler(httpd_handle, &media_base_uri);
-		ESP_LOGI(LOGTAG, "Register %s handler : %s", media_base_uri.uri, esp_err_to_name(rc));
+		rc = httpd_register_uri_handler(httpd_handle, &base_uri);
+		ESP_LOGI(LOGTAG, "Register handler %s : %s", base_uri.uri, esp_err_to_name(rc));
 
 	} else {
 		if (httpd_handle == NULL)
