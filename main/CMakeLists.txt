@@ -7,10 +7,11 @@ set(GENERATED_MEDIA ${CMAKE_CURRENT_SOURCE_DIR}/MediaFilesData.h)
 idf_component_register(
 	SRCS
 		"iot.c"
-		"network.c"
+#		"network.c"
 		"nowfun.c"
 		"portal.c"
 		"FormUploader.c"
+		"NetworkManager.c"
 		"MediaFiles.c"
 		${GENERATED_MEDIA}
 		${GENERATED_CONFIG}

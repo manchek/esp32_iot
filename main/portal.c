@@ -4,7 +4,7 @@
 #include <esp_http_server.h>
 #include <esp_timer.h>
 #include "portal.h"
-#include "network.h"
+#include "NetworkManager.h"
 #include "FormUploader.h"
 #include "MediaFiles.h"
 #include "Config.h"

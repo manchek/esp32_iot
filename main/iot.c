@@ -12,7 +12,7 @@
 #include <freertos/task.h>
 #include <nvs_flash.h>
 
-#include "network.h"
+#include "NetworkManager.h"
 #include "portal.h"
 #include "nowfun.h"
 #include "Config.h"
@@ -162,7 +162,9 @@ void app_main(void)
 */
 
 	network_init();
-	advertise_ap(true);
+	network_set_ap_mode(AP_MODE_PORTAL);
+	network_set_sta_mode(STA_MODE_PUBLIC);
+	//network_advertise_ap(true);
 
 	portal_init();
 	portal_enable(true);
