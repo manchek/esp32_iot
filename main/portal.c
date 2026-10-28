@@ -337,45 +337,35 @@ form_handler( httpd_req_t *req )
 static esp_err_t
 status_handler( httpd_req_t *req )
 {
-	page_header(req, PAGE_STATUS);
 	httpd_resp_sendstr_chunk(req, "STATUS STUFF");
-	page_trailer(req, PAGE_STATUS);
 	return ESP_OK;
 }
 
 static esp_err_t
 devices_handler( httpd_req_t *req )
 {
-	page_header(req, PAGE_DEVICES);
 	httpd_resp_sendstr_chunk(req, "STUFF");
-	page_trailer(req, PAGE_DEVICES);
 	return ESP_OK;
 }
 
 static esp_err_t
 ventilation_handler( httpd_req_t *req )
 {
-	page_header(req, PAGE_VENTILATION);
 	httpd_resp_sendstr_chunk(req, "STUFF");
-	page_trailer(req, PAGE_VENTILATION);
 	return ESP_OK;
 }
 
 static esp_err_t
 network_handler( httpd_req_t *req )
 {
-	page_header(req, PAGE_NETWORK);
 	httpd_resp_sendstr_chunk(req, "STUFF");
-	page_trailer(req, PAGE_NETWORK);
 	return ESP_OK;
 }
 
 static esp_err_t
 diag_handler( httpd_req_t *req )
 {
-	page_header(req, PAGE_DIAG);
 	httpd_resp_sendstr_chunk(req, "STUFF");
-	page_trailer(req, PAGE_DIAG);
 	return ESP_OK;
 }
 
@@ -416,6 +406,18 @@ media_handler( httpd_req_t *req )
 	return ESP_OK;
 }
 
+struct pagehandler {
+	int page;
+	const char *uri;
+	esp_err_t (*handler)( httpd_req_t *req );
+} dynamic_pages[] = {
+	{ PAGE_STATUS, "/status.html", status_handler },
+	{ PAGE_DEVICES, "/dev.html", devices_handler },
+	{ PAGE_VENTILATION, "/vent.html", ventilation_handler },
+	{ PAGE_NETWORK, "/net.html", network_handler },
+	{ PAGE_DIAG, "/diag.html", diag_handler },
+};
+
 static esp_err_t
 base_handler( httpd_req_t *req )
 {
@@ -439,18 +441,17 @@ base_handler( httpd_req_t *req )
 	/*
 	 *  handle dynamically generated pages
 	 */
-	if (pathlen == 12 && !strncmp(path, "/status.html", 12))
-		return status_handler(req);
-	if (pathlen == 9 && !strncmp(path, "/dev.html", 9))
-		return devices_handler(req);
-	if (pathlen == 10 && !strncmp(path, "/vent.html", 10))
-		return ventilation_handler(req);
-	if (pathlen == 9 && !strncmp(path, "/net.html", 9))
-		return network_handler(req);
-	if (pathlen == 10 && !strncmp(path, "/diag.html", 10))
-		return diag_handler(req);
+	for (int i = 0; i < sizeof(dynamic_pages)/sizeof(dynamic_pages[0]); i++) {
+		int len = strlen(dynamic_pages[i].uri);
+		if (pathlen == len && !strncmp(path, dynamic_pages[i].uri, len)) {
+			page_header(req, dynamic_pages[i].page);
+			status_handler(req);
+			page_trailer(req, dynamic_pages[i].page);
+			return ESP_OK;
+		}
+	}
 	if (pathlen == 7 && !strncmp(path, "/logout", 7))
-		return logout_handler(req);
+	   return logout_handler(req);
 
 	/*
 	 *  then static content
