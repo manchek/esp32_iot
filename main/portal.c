@@ -115,10 +115,24 @@ page_header( httpd_req_t *req, int page )
 }
 
 static void
+format_duration( char *buf, int buflen, int sec )
+{
+	if (sec < 60) {
+		snprintf(buf, buflen, "%ds", sec);
+	} else if (sec < 3600) {
+		snprintf(buf, buflen, "%dm%ds", sec / 60, sec % 60);
+	} else if (sec < 3600 * 24) {
+		snprintf(buf, buflen, "%dh%dm", sec / 3600, sec / 60 % 60);
+	} else {
+		snprintf(buf, buflen, "%dd%dh", sec / 3600 / 24, sec / 3600 % 24);
+	}
+}
+
+static void
 page_trailer( httpd_req_t *req, int page )
 {
 	char uptm[16];
-	snprintf(uptm, sizeof(uptm), "%d", (int)(esp_timer_get_time() / 1000000));
+	format_duration(uptm, sizeof(uptm), (int)(esp_timer_get_time() / 1000000));
 	char *args[3] = { "1.0.0", uptm, "Offline" };
 	send_formatted_string(req,
 			"    </div>"
