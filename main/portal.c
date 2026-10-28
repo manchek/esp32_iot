@@ -35,17 +35,64 @@ enum {
 };
 
 static void
+send_formatted_string( httpd_req_t *req, const char *fmt, int nargs, char **args )
+{
+	const char *p = fmt;
+	const char *q;
+	while (*p) {
+		if (*p == '`') {
+			char *endp;
+			int ix = strtol(p + 1, &endp, 10);
+			p = endp;
+			if (*p == '`')
+				++p;
+			if (ix >= 1 && ix <= nargs && args[ix - 1] != NULL)
+				httpd_resp_sendstr_chunk(req, args[ix - 1]);
+			else
+				httpd_resp_sendstr_chunk(req, "UNDEFINED");
+		}
+		for (q = p; *q && *q != '`'; ++q)
+			;
+		if (q > p) {
+			httpd_resp_send_chunk(req, p, q - p);
+			p = q;
+		}
+	}
+}
+
+static void
 page_header( httpd_req_t *req, int page )
 {
-	httpd_resp_sendstr_chunk(req,
+	char *args[6] = {};
+
+	switch (page) {
+	case PAGE_STATUS:
+		args[0] = "Status";
+		args[1] = "id=\"ntabs\"";
+		break;
+	case PAGE_DEVICES:
+		args[0] = "Devices";
+		args[2] = "id=\"ntabs\"";
+		break;
+	case PAGE_VENTILATION:
+		args[0] = "Ventilation";
+		args[3] = "id=\"ntabs\"";
+		break;
+	case PAGE_NETWORK:
+		args[0] = "Network";
+		args[4] = "id=\"ntabs\"";
+		break;
+	case PAGE_DIAG:
+		args[0] = "Diagnostice";
+		args[5] = "id=\"ntabs\"";
+		break;
+	}
+
+	send_formatted_string(req,
 			"<html>"
 			"<head>"
 			"<link rel=\"stylesheet\" type=\"text/css\" href=\"page.css\">"
-			"<title>");
-	const char *title = "Status";
-	httpd_resp_sendstr_chunk(req, title);
-	httpd_resp_sendstr_chunk(req,
-			"</title>"
+			"<title>`1`</title>"
 			"</head>"
 			"<body>"
 			"  <div id=\"outside\">"
@@ -55,38 +102,33 @@ page_header( httpd_req_t *req, int page )
 			"    VentCommander"
 			"    </div>"
 			"    <div id=\"tabs\">"
-			"      <table class=\"ntab\"><tr>");
-
-	httpd_resp_sendstr_chunk(req,
-			"        <td><button id=\"ntabs\" onclick=\"location.href='status.html'\">Status</button></td>"
-			"        <td><button onclick=\"location.href='dev.html'\">Devices</button></td>"
-			"        <td><button onclick=\"location.href='vent.html'\">Ventilation</button></td>"
-			"        <td><button onclick=\"location.href='net.html'\">Network</button></td>"
-			"        <td><button onclick=\"location.href='diag.html'\">Troubleshooting</button></td>");
-
-	httpd_resp_sendstr_chunk(req,
+			"      <table class=\"ntab\"><tr>"
+			"        <td><button `2` onclick=\"location.href='status.html'\">Status</button></td>"
+			"        <td><button `3` onclick=\"location.href='dev.html'\">Devices</button></td>"
+			"        <td><button `4` onclick=\"location.href='vent.html'\">Ventilation</button></td>"
+			"        <td><button `5` onclick=\"location.href='net.html'\">Network</button></td>"
+			"        <td><button `6` onclick=\"location.href='diag.html'\">Troubleshooting</button></td>"
 			"      </tr></table>"
 			"    </div>"
-			"    <div id=\"main\">");
+			"    <div id=\"main\">",
+		sizeof(args)/sizeof(args[0]), args);
 }
 
 static void
 page_trailer( httpd_req_t *req, int page )
 {
-	char buf[16];
-	snprintf(buf, sizeof(buf), "%d", (int)(esp_timer_get_time() / 1000000));
-
-	httpd_resp_sendstr_chunk(req,
+	char uptm[16];
+	snprintf(uptm, sizeof(uptm), "%d", (int)(esp_timer_get_time() / 1000000));
+	char *args[3] = { "1.0.0", uptm, "Offline" };
+	send_formatted_string(req,
 			"    </div>"
 			"    <div id=\"footer\">"
-			"      <table class=\"ftab\"><tr><td>1.0.2</td><td>Up ");
-	httpd_resp_sendstr_chunk(req, buf);
-	httpd_resp_sendstr_chunk(req,
-			"</td><td>Ready</td><td><a href=\"/logout\">Log Out</a></td></tr></table>"
+			"      <table class=\"ftab\"><tr><td>`1`</td><td>Up `2`</td><td>`3`</td><td><a href=\"/logout\">Log Out</a></td></tr></table>"
 			"    </div>"
 			"  </div>"
 			"</body>"
-			"</html>");
+			"</html>",
+		sizeof(args)/sizeof(args[0]), args);
 	httpd_resp_send_chunk(req, NULL, 0);
 }
 
