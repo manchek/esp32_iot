@@ -320,11 +320,15 @@ static esp_err_t
 network_handler( httpd_req_t *req )
 {
 	if (config_get_wifi_ssid()[0]) {
-		char *args[1];
+		char *args[3];
 		args[0] = (char *)config_get_wifi_ssid();
+		args[1] = (char *)network_get_sta_ip();
+		args[2] = (char *)get_base_mac();
 		send_formatted_string(req,
 			"<table>"
 			"<tr><td>SSID</td><td>`1`</td></tr>"
+			"<tr><td>IP Address</td><td>`2`</td></tr>"
+			"<tr><td>MAC Address</td><td>`3`</td></tr>"
 			"</table>"
 			"<button onclick=\"location.href='wifi-erase'\">Clear Network</button>",
 			sizeof(args)/sizeof(args[0]), args);

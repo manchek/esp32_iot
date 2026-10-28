@@ -5,9 +5,11 @@
 #include <esp_mac.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <netinet/in.h>
 
 #include "Config.h"
 
+#define HEX_MAC_LENGTH 18
 #define MAX_AP_RECORDS 10
 #define AP_NAME_LENGTH 20  // "AirCyclerConnectXXX\0"
 
@@ -19,6 +21,7 @@ enum {
 
 static const char *LOGTAG __attribute__((unused)) = "NET";
 
+static char device_mac[HEX_MAC_LENGTH] = {0};
 static TaskHandle_t nm_task_handle = NULL;      // network manager task
 static bool nm_task_run = false;                // enable task to run
 static esp_netif_t *netif_ap_handle = NULL;
@@ -31,6 +34,17 @@ static int ap_mode = AP_MODE_NONE;
 static int ap_mode_req = AP_MODE_NONE;
 static uint8_t ap_count = 0;                    // AP count from last scan
 static wifi_ap_record_t ap_list[MAX_AP_RECORDS];// APs found in last scan
+
+char *get_base_mac()
+{
+	if (!device_mac[0]) {
+		uint8_t baseMac[6];
+		ESP_ERROR_CHECK(esp_efuse_mac_get_default(baseMac));
+		snprintf(device_mac, sizeof(device_mac), "%02x:%02x:%02x:%02x:%02x:%02x",
+				baseMac[0], baseMac[1], baseMac[2], baseMac[3], baseMac[4], baseMac[5]);
+	}
+	return device_mac;
+}
 
 char *get_portal_ap_name()
 {
@@ -229,5 +243,23 @@ network_scan_access_points( uint8_t *count, wifi_ap_record_t **list )
 	*count = ap_count;
 	*list = ap_list;
 	return ESP_OK;
+}
+
+#define DOTTED_IP_LENGTH 16  // 255.255.255.255\0
+
+static char sta_ip[DOTTED_IP_LENGTH];
+
+char *
+network_get_sta_ip()
+{
+	if (netif_sta_handle && sta_status == STA_STATUS_UP) {
+		esp_netif_ip_info_t ip_info;
+		esp_netif_get_ip_info(netif_sta_handle, &ip_info);
+		uint32_t a = ntohl(ip_info.ip.addr);
+		snprintf(sta_ip, sizeof(sta_ip), "%d.%d.%d.%d", (int)(a >> 24) & 0xff, (int)(a >> 16) & 0xff, (int)(a >> 8) & 0xff, (int)a & 0xff);
+	} else {
+		sta_ip[0] = 0;
+	}
+	return sta_ip;
 }
 

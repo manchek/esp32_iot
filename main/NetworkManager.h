@@ -9,13 +9,6 @@ extern "C" {
 #endif
 
 /**
- *  must be called before any other network functions.
- *  kicks off the manager thread that is responsible for things like applying
- *  configuration changes, recovering from disconnects, etc.
- */
-esp_err_t network_init();
-
-/**
  *  modes that WiFi station can be in
  */
 #define STA_MODE_LIST \
@@ -43,25 +36,18 @@ AP_MODE_LIST
 #undef F
 };
 
+char *get_base_mac();
+
+/**
+ *  must be called before any other network functions.
+ *  kicks off the manager thread that is responsible for things like applying
+ *  configuration changes, recovering from disconnects, etc.
+ */
+esp_err_t network_init();
+
 esp_err_t network_set_sta_mode( int mode );
 
 esp_err_t network_set_ap_mode( int mode );
-
-#if 0
-
-void network_scan( bool block );
-
-
-/**
- *  set SSID for public network operation.
- */
-void network_set_ssid( const char *ssid );
-
-/**
- *  set password for public network operation.
- */
-void network_set_pass( const char *pass );
-#endif
 
 /**
  *  turn soft AP advertisement on or off;
@@ -72,6 +58,8 @@ void network_advertise_ap( bool onoff );
  *  do a synchronous scan of available APs
  */
 esp_err_t network_scan_access_points( uint8_t *count, wifi_ap_record_t **list );
+
+char *network_get_sta_ip();
 
 #ifdef __cplusplus
 }
