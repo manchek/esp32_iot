@@ -7,6 +7,7 @@
 #include "network.h"
 #include "FormUploader.h"
 #include "MediaFiles.h"
+#include "Config.h"
 
 static const char *LOGTAG = "PORTAL";
 
@@ -26,12 +27,16 @@ static httpd_uri_t base_uri = {
 
 static char login_token[20];
 
+/**
+ *  page handlers using standard tabbed view
+ */
 enum {
-	PAGE_STATUS = 1,
-	PAGE_DEVICES,
-	PAGE_VENTILATION,
-	PAGE_NETWORK,
-	PAGE_DIAG,
+	TAB_NONE = 0,
+	TAB_STATUS,
+	TAB_DEVICES,
+	TAB_VENTILATION,
+	TAB_NETWORK,
+	TAB_DIAG,
 };
 
 static void
@@ -61,28 +66,28 @@ send_formatted_string( httpd_req_t *req, const char *fmt, int nargs, char **args
 }
 
 static void
-page_header( httpd_req_t *req, int page )
+page_header( httpd_req_t *req, int tab )
 {
 	char *args[6] = {};
 
-	switch (page) {
-	case PAGE_STATUS:
+	switch (tab) {
+	case TAB_STATUS:
 		args[0] = "Status";
 		args[1] = "id=\"ntabs\"";
 		break;
-	case PAGE_DEVICES:
+	case TAB_DEVICES:
 		args[0] = "Devices";
 		args[2] = "id=\"ntabs\"";
 		break;
-	case PAGE_VENTILATION:
+	case TAB_VENTILATION:
 		args[0] = "Ventilation";
 		args[3] = "id=\"ntabs\"";
 		break;
-	case PAGE_NETWORK:
+	case TAB_NETWORK:
 		args[0] = "Network";
 		args[4] = "id=\"ntabs\"";
 		break;
-	case PAGE_DIAG:
+	case TAB_DIAG:
 		args[0] = "Diagnostice";
 		args[5] = "id=\"ntabs\"";
 		break;
@@ -129,7 +134,7 @@ format_duration( char *buf, int buflen, int sec )
 }
 
 static void
-page_trailer( httpd_req_t *req, int page )
+page_trailer( httpd_req_t *req, int tab )
 {
 	char uptm[16];
 	format_duration(uptm, sizeof(uptm), (int)(esp_timer_get_time() / 1000000));
@@ -242,98 +247,6 @@ logout_handler( httpd_req_t *req )
 	return ESP_OK;
 }
 
-#if 0
-static esp_err_t
-form_handler( httpd_req_t *req )
-{
-	if (!check_login(req))
-		return ESP_OK;
-
-	int pathlen;
-	const char *query;
-	if ((query = strchr(req->uri, '?')) != NULL)
-		pathlen = query - req->uri;
-	else
-		pathlen = strlen(req->uri);
-	const char *path = req->uri;
-	ESP_LOGI(LOGTAG, "form_handler method=%d uri=%s path=%.*s query=%s content=%d", req->method, req->uri, pathlen, path, (query ? query : "(none)"), req->content_len);
-
-	bool askscan = false;
-	if (req->method == HTTP_POST && req->content_len > 0) {
-#if 0
-		char buf[256];
-		int done = 0;
-		int n;
-
-		buf[0] = 0;
-		httpd_req_get_hdr_value_str(req, "Content-type", buf, sizeof(buf));
-		ESP_LOGI(LOGTAG, "Content-type: %s", buf);
-		while (done < req->content_len && (n = httpd_req_recv(req, buf, sizeof(buf)-1)) > 0) {
-			done += n;
-			ESP_LOGI(LOGTAG, "Request: %.*s", n, buf);
-		}
-#else
-		char ct[64];
-		ct[0] = 0;
-		httpd_req_get_hdr_value_str(req, "Content-type", ct, sizeof(ct));
-		ESP_LOGI(LOGTAG, "Content-type: %s", ct);
-		FormUploader_t upl;
-		formUploaderInit(&upl, req, ct);
-		char *name;
-		char *value;
-		while (formUploaderNext(&upl, &name, &value)) {
-			ESP_LOGI(LOGTAG, "Post: %s = %s", name, value);
-			if (!strcmp("scan", name))
-				askscan = true;
-			else if (!strcmp("ssid", name))
-				network_set_ssid(value);
-			else if (!strcmp("pass", name))
-				network_set_pass(value);
-		}
-#endif
-	}
-
-	httpd_resp_sendstr_chunk(req, page_header);
-	httpd_resp_sendstr_chunk(req,
-		//"<form method=\"post\" enctype=\"text/plain\">"
-		"<form method=\"post\">"
-		"<table>"
-	);
-	if (askscan) {
-		//network_scan(true);
-		uint8_t num_ap = 0;
-		wifi_ap_record_t *aps = NULL;
-		network_scan_access_points(&num_ap, &aps);
-		httpd_resp_sendstr_chunk(req,
-			"<tr><td>SSID</td><td><input list=\"wifis\" name=\"ssid\"> -choose</td></tr>"
-			"<datalist id=\"wifis\">"
-		);
-		for (int i = 0; i < num_ap; i++) {
-			char buf[128];
-			snprintf(buf, sizeof(buf), "<option value=\"%s\">", aps[i].ssid);
-			httpd_resp_sendstr_chunk(req, buf);
-		}
-		httpd_resp_sendstr_chunk(req,
-			"</datalist>"
-		);
-	} else {
-		httpd_resp_sendstr_chunk(req,
-			"<tr><td>SSID</td><td><input type=\"text\" name=\"ssid\"></td></tr>"
-		);
-	}
-	httpd_resp_sendstr_chunk(req,
-		"<tr><td>Password</td><td><input type=\"text\" name=\"pass\"></td></tr>"
-		"</table>"
-		"<input type=\"submit\">"
-		"<button name=\"scan\" value=\"1\">Scan WiFi</button>"
-		"</form>"
-	);
-	httpd_resp_sendstr_chunk(req, page_footer);
-	httpd_resp_send_chunk(req, NULL, 0);
-	return ESP_OK;
-}
-#endif
-
 static esp_err_t
 status_handler( httpd_req_t *req )
 {
@@ -356,9 +269,101 @@ ventilation_handler( httpd_req_t *req )
 }
 
 static esp_err_t
+chain_to_network( httpd_req_t *req )
+{
+	httpd_resp_sendstr(req,
+		"<html>"
+		"<script>"
+		"window.onload = function () {"
+		"  window.location = window.location.protocol + '//' + window.location.host + '/net.html';"
+		"}"
+		"</script>"
+		"</html>");
+	return ESP_OK;
+}
+
+static bool askscan = false;    // signal from form handler to network page, this is a bit of a hack
+
+static esp_err_t
+wifi_handler( httpd_req_t *req )
+{
+	if (req->method == HTTP_POST && req->content_len > 0) {
+		char ct[64];
+		ct[0] = 0;
+		httpd_req_get_hdr_value_str(req, "Content-type", ct, sizeof(ct));
+		ESP_LOGI(LOGTAG, "Content-type: %s", ct);
+		FormUploader_t upl;
+		formUploaderInit(&upl, req, ct);
+		char *name;
+		char *value;
+		while (formUploaderNext(&upl, &name, &value)) {
+			ESP_LOGI(LOGTAG, "Post: %s=%s", name, value);
+			if (!strcmp("scan", name))
+				askscan = true;
+			else if (!strcmp("ssid", name))
+				config_set_wifi_ssid(value);
+			else if (!strcmp("pass", name))
+				config_set_wifi_pw(value);
+		}
+	}
+	return chain_to_network(req);
+}
+
+static esp_err_t
+wifi_erase_handler( httpd_req_t *req )
+{
+	config_set_wifi_ssid("");
+	return chain_to_network(req);
+}
+
+static esp_err_t
 network_handler( httpd_req_t *req )
 {
-	httpd_resp_sendstr_chunk(req, "STUFF");
+	if (config_get_wifi_ssid()[0]) {
+		char *args[1];
+		args[0] = (char *)config_get_wifi_ssid();
+		send_formatted_string(req,
+			"<table>"
+			"<tr><td>SSID</td><td>`1`</td></tr>"
+			"</table>"
+			"<button onclick=\"location.href='wifi-erase'\">Clear Network</button>",
+			sizeof(args)/sizeof(args[0]), args);
+
+	} else {
+		httpd_resp_sendstr_chunk(req,
+			"<form method=\"post\" action=\"/wifi\">"
+			"<table>"
+		);
+		if (askscan) {
+			askscan = false;
+			uint8_t num_ap = 0;
+			wifi_ap_record_t *aps = NULL;
+			network_scan_access_points(&num_ap, &aps);
+			httpd_resp_sendstr_chunk(req,
+				"<tr><td>SSID</td><td><input list=\"wifis\" name=\"ssid\"> -choose</td></tr>"
+				"<datalist id=\"wifis\">"
+			);
+			for (int i = 0; i < num_ap; i++) {
+				char buf[128];
+				snprintf(buf, sizeof(buf), "<option value=\"%s\">", aps[i].ssid);
+				httpd_resp_sendstr_chunk(req, buf);
+			}
+			httpd_resp_sendstr_chunk(req,
+				"</datalist>"
+			);
+		} else {
+			httpd_resp_sendstr_chunk(req,
+				"<tr><td>SSID</td><td><input type=\"text\" name=\"ssid\"></td></tr>"
+			);
+		}
+		httpd_resp_sendstr_chunk(req,
+			"<tr><td>Password</td><td><input type=\"text\" name=\"pass\"></td></tr>"
+			"</table>"
+			"<input type=\"submit\">"
+			"<button name=\"scan\" value=\"1\">Scan WiFi</button>"
+			"</form>"
+		);
+	}
 	return ESP_OK;
 }
 
@@ -407,15 +412,20 @@ media_handler( httpd_req_t *req )
 }
 
 struct pagehandler {
-	int page;
-	const char *uri;
-	esp_err_t (*handler)( httpd_req_t *req );
+	int tab;                                    // tabbed page format, or TAB_NONE
+	int method;                                 // HTTP_method allowed (not HTTP_ANY)
+	const char *uri;                            // uri to match
+	esp_err_t (*handler)( httpd_req_t *req );   // request handler function
 } dynamic_pages[] = {
-	{ PAGE_STATUS, "/status.html", status_handler },
-	{ PAGE_DEVICES, "/dev.html", devices_handler },
-	{ PAGE_VENTILATION, "/vent.html", ventilation_handler },
-	{ PAGE_NETWORK, "/net.html", network_handler },
-	{ PAGE_DIAG, "/diag.html", diag_handler },
+	{ TAB_STATUS,      HTTP_GET, "/status.html", status_handler },
+	{ TAB_DEVICES,     HTTP_GET, "/dev.html", devices_handler },
+	{ TAB_VENTILATION, HTTP_GET, "/vent.html", ventilation_handler },
+	{ TAB_NETWORK,     HTTP_GET, "/net.html", network_handler },
+	{ TAB_DIAG,        HTTP_GET, "/diag.html", diag_handler },
+
+	{ TAB_NONE,        HTTP_POST, "/wifi", wifi_handler },
+	{ TAB_NONE,        HTTP_GET,  "/wifi-erase", wifi_erase_handler },
+	{ TAB_NONE,        HTTP_GET,  "/logout", logout_handler },
 };
 
 static esp_err_t
@@ -439,19 +449,33 @@ base_handler( httpd_req_t *req )
 		return ESP_OK;
 
 	/*
-	 *  handle dynamically generated pages
+	 *  handle dynamically generated tabbed pages
 	 */
 	for (int i = 0; i < sizeof(dynamic_pages)/sizeof(dynamic_pages[0]); i++) {
-		int len = strlen(dynamic_pages[i].uri);
-		if (pathlen == len && !strncmp(path, dynamic_pages[i].uri, len)) {
-			page_header(req, dynamic_pages[i].page);
-			status_handler(req);
-			page_trailer(req, dynamic_pages[i].page);
-			return ESP_OK;
+		if (req->method == dynamic_pages[i].method) {
+			int len = strlen(dynamic_pages[i].uri);
+			if (pathlen == len && !strncmp(path, dynamic_pages[i].uri, len)) {
+				if (dynamic_pages[i].tab != TAB_NONE)
+					page_header(req, dynamic_pages[i].tab);
+				dynamic_pages[i].handler(req);
+				if (dynamic_pages[i].tab != TAB_NONE)
+					page_trailer(req, dynamic_pages[i].tab);
+				return ESP_OK;
+			}
 		}
 	}
+
+	/*
+	 *  handle stuff like forms
+	 */
+/*
+	if (pathlen == 5 && !strncmp(path, "/wifi", 5) && req->method == HTTP_POST)
+	   return wifi_handler(req);
+	if (pathlen == 11 && !strncmp(path, "/wifi-erase", 11))
+	   return wifi_erase_handler(req);
 	if (pathlen == 7 && !strncmp(path, "/logout", 7))
 	   return logout_handler(req);
+*/
 
 	/*
 	 *  then static content
