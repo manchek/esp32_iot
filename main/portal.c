@@ -26,6 +26,70 @@ static httpd_uri_t base_uri = {
 
 static char login_token[20];
 
+enum {
+	PAGE_STATUS = 1,
+	PAGE_DEVICES,
+	PAGE_VENTILATION,
+	PAGE_NETWORK,
+	PAGE_DIAG,
+};
+
+static void
+page_header( httpd_req_t *req, int page )
+{
+	httpd_resp_sendstr_chunk(req,
+			"<html>"
+			"<head>"
+			"<link rel=\"stylesheet\" type=\"text/css\" href=\"page.css\">"
+			"<title>");
+	const char *title = "Status";
+	httpd_resp_sendstr_chunk(req, title);
+	httpd_resp_sendstr_chunk(req,
+			"</title>"
+			"</head>"
+			"<body>"
+			"  <div id=\"outside\">"
+			"    <div id=\"header\">"
+			"    <img src=\"ac_logo.png\">"
+			"    <br>"
+			"    VentCommander"
+			"    </div>"
+			"    <div id=\"tabs\">"
+			"      <table class=\"ntab\"><tr>");
+
+	httpd_resp_sendstr_chunk(req,
+			"        <td><button id=\"ntabs\" onclick=\"location.href='status.html'\">Status</button></td>"
+			"        <td><button onclick=\"location.href='dev.html'\">Devices</button></td>"
+			"        <td><button onclick=\"location.href='vent.html'\">Ventilation</button></td>"
+			"        <td><button onclick=\"location.href='net.html'\">Network</button></td>"
+			"        <td><button onclick=\"location.href='diag.html'\">Troubleshooting</button></td>");
+
+	httpd_resp_sendstr_chunk(req,
+			"      </tr></table>"
+			"    </div>"
+			"    <div id=\"main\">");
+}
+
+static void
+page_trailer( httpd_req_t *req, int page )
+{
+	char buf[16];
+	snprintf(buf, sizeof(buf), "%d", (int)(esp_timer_get_time() / 1000000));
+
+	httpd_resp_sendstr_chunk(req,
+			"    </div>"
+			"    <div id=\"footer\">"
+			"      <table class=\"ftab\"><tr><td>1.0.2</td><td>Up ");
+	httpd_resp_sendstr_chunk(req, buf);
+	httpd_resp_sendstr_chunk(req,
+			"</td><td>Ready</td><td><a href=\"/logout\">Log Out</a></td></tr></table>"
+			"    </div>"
+			"  </div>"
+			"</body>"
+			"</html>");
+	httpd_resp_send_chunk(req, NULL, 0);
+}
+
 /**
  *  verify login token in request cookies against our active token.
  *  if not found or mismatch, actually serve the login page.
@@ -215,6 +279,51 @@ form_handler( httpd_req_t *req )
 #endif
 
 static esp_err_t
+status_handler( httpd_req_t *req )
+{
+	page_header(req, PAGE_STATUS);
+	httpd_resp_sendstr_chunk(req, "STATUS STUFF");
+	page_trailer(req, PAGE_STATUS);
+	return ESP_OK;
+}
+
+static esp_err_t
+devices_handler( httpd_req_t *req )
+{
+	page_header(req, PAGE_DEVICES);
+	httpd_resp_sendstr_chunk(req, "STUFF");
+	page_trailer(req, PAGE_DEVICES);
+	return ESP_OK;
+}
+
+static esp_err_t
+ventilation_handler( httpd_req_t *req )
+{
+	page_header(req, PAGE_VENTILATION);
+	httpd_resp_sendstr_chunk(req, "STUFF");
+	page_trailer(req, PAGE_VENTILATION);
+	return ESP_OK;
+}
+
+static esp_err_t
+network_handler( httpd_req_t *req )
+{
+	page_header(req, PAGE_NETWORK);
+	httpd_resp_sendstr_chunk(req, "STUFF");
+	page_trailer(req, PAGE_NETWORK);
+	return ESP_OK;
+}
+
+static esp_err_t
+diag_handler( httpd_req_t *req )
+{
+	page_header(req, PAGE_DIAG);
+	httpd_resp_sendstr_chunk(req, "STUFF");
+	page_trailer(req, PAGE_DIAG);
+	return ESP_OK;
+}
+
+static esp_err_t
 media_handler( httpd_req_t *req )
 {
 	const char *path = req->uri;
@@ -226,7 +335,7 @@ media_handler( httpd_req_t *req )
 		pathlen = strlen(path);
 
 	if (pathlen == 1) {
-		path = "/default.html";
+		path = "/status.html";
 		pathlen = strlen(path);
 	}
 
@@ -274,6 +383,16 @@ base_handler( httpd_req_t *req )
 	/*
 	 *  handle dynamically generated pages
 	 */
+	if (pathlen == 12 && !strncmp(path, "/status.html", 12))
+		return status_handler(req);
+	if (pathlen == 9 && !strncmp(path, "/dev.html", 9))
+		return devices_handler(req);
+	if (pathlen == 10 && !strncmp(path, "/vent.html", 10))
+		return ventilation_handler(req);
+	if (pathlen == 9 && !strncmp(path, "/net.html", 9))
+		return network_handler(req);
+	if (pathlen == 10 && !strncmp(path, "/diag.html", 10))
+		return diag_handler(req);
 	if (pathlen == 7 && !strncmp(path, "/logout", 7))
 		return logout_handler(req);
 
