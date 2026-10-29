@@ -132,6 +132,9 @@ static void nm_task( void* arg )
 		if (sta_mode_req != sta_mode) {
 			ESP_LOGI(LOGTAG, "STA mode changes %d>%d", sta_mode, sta_mode_req);
 			sta_mode = sta_mode_req;
+			esp_err_t rc;
+			if ((rc = esp_wifi_disconnect()) != ESP_OK)
+				ESP_LOGE(LOGTAG, "Disconnect STA: %s", esp_err_to_name(rc));
 		}
 
 		if (ap_mode_req != ap_mode) {
@@ -210,13 +213,16 @@ static void nm_task( void* arg )
 		case STA_MODE_PUBLIC:
 			if (sta_status == STA_STATUS_DOWN) {
 				if (config_get_wifi_ssid()[0] && config_get_wifi_pw()[0]) {
+					esp_err_t rc;
 					ESP_LOGI(LOGTAG, "Connect to %s", config_get_wifi_ssid());
 					sta_status = STA_STATUS_CONN;
 					wifi_config_t wifi_sta_config = { 0 };
 					strcpy((char*)wifi_sta_config.sta.ssid, config_get_wifi_ssid());
 					strcpy((char*)wifi_sta_config.sta.password, config_get_wifi_pw());
-					ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_sta_config));
-					ESP_ERROR_CHECK(esp_wifi_connect());
+					if ((rc = esp_wifi_set_config(WIFI_IF_STA, &wifi_sta_config)) != ESP_OK)
+						ESP_LOGE(LOGTAG, "Set STA config: %s", esp_err_to_name(rc));
+					if ((rc = esp_wifi_connect()) != ESP_OK)
+						ESP_LOGE(LOGTAG, "Connect STA: %s", esp_err_to_name(rc));
 				}
 			}
 			break;
