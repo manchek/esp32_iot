@@ -28,6 +28,8 @@ Dynamically generated content goes here.
 Here there would be diagnostic stuff.
 View logs and events, run test operations, firmware update/downgrade, factory reset.
 </div>
+<button onclick="cac('apdown');">AP Down</button>
+<button onclick="cac('portal');">AP Portal</button>
     </div>
     <div id="footer">
       <table class="ftab"><tr><td>1.0.2</td><td>Up 1h30m</td><td>Ready</td><td><a href="/logout">Log Out</a></td></tr></table>
@@ -35,4 +37,7 @@ View logs and events, run test operations, firmware update/downgrade, factory re
     </div>
   </div>
 </body>
+<script>
+function cac(a) {fetch('/action?'+a);}
+</script>
 </html>
