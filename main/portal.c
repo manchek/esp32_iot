@@ -39,6 +39,11 @@ enum {
 	TAB_DIAG,
 };
 
+/**
+ *  send HTTP response made of formatted string.
+ *  escapes `1`, `2` etc. are replaced with contents from the args array (`1` = args[0]).
+ *  to get a single backtick, use ``.
+ */
 static void
 send_formatted_string( httpd_req_t *req, const char *fmt, int nargs, char **args )
 {
@@ -54,7 +59,7 @@ send_formatted_string( httpd_req_t *req, const char *fmt, int nargs, char **args
 			if (ix >= 1 && ix <= nargs && args[ix - 1] != NULL)
 				httpd_resp_sendstr_chunk(req, args[ix - 1]);
 			else
-				httpd_resp_sendstr_chunk(req, "UNDEFINED");
+				httpd_resp_sendstr_chunk(req, "`");
 		}
 		for (q = p; *q && *q != '`'; ++q)
 			;
@@ -88,7 +93,7 @@ page_header( httpd_req_t *req, int tab )
 		args[4] = "id=\"ntabs\"";
 		break;
 	case TAB_DIAG:
-		args[0] = "Diagnostice";
+		args[0] = "Troubleshooting";
 		args[5] = "id=\"ntabs\"";
 		break;
 	}
@@ -374,7 +379,11 @@ network_handler( httpd_req_t *req )
 static esp_err_t
 diag_handler( httpd_req_t *req )
 {
-	httpd_resp_sendstr_chunk(req, "STUFF");
+	httpd_resp_sendstr_chunk(req,
+		"AP Diagnostics:"
+		"<button onclick=\"fetch('/action?apdown');\">Shut Down</button>"
+		"<button onclick=\"fetch('/action?portal');\">Web Portal</button>"
+	);
 	return ESP_OK;
 }
 
@@ -415,6 +424,22 @@ media_handler( httpd_req_t *req )
 	return ESP_OK;
 }
 
+static esp_err_t
+action_handler( httpd_req_t *req )
+{
+	const char *query = strchr(req->uri, '?');
+	query = (query != NULL) ? query + 1 : "";
+	ESP_LOGI(LOGTAG, "Action: %s", query);
+
+	if (!strcmp(query, "apdown")) {
+		network_set_ap_mode(AP_MODE_NONE);
+	} else if (!strcmp(query, "portal")) {
+		network_set_ap_mode(AP_MODE_PORTAL);
+	}
+	httpd_resp_send(req, "", 0);
+	return ESP_OK;
+}
+
 struct pagehandler {
 	int tab;                                    // tabbed page format, or TAB_NONE
 	int method;                                 // HTTP_method allowed (not HTTP_ANY)
@@ -430,6 +455,7 @@ struct pagehandler {
 	{ TAB_NONE,        HTTP_POST, "/wifi", wifi_handler },
 	{ TAB_NONE,        HTTP_GET,  "/wifi-erase", wifi_erase_handler },
 	{ TAB_NONE,        HTTP_GET,  "/logout", logout_handler },
+	{ TAB_NONE,        HTTP_GET,  "/action", action_handler },
 };
 
 static esp_err_t

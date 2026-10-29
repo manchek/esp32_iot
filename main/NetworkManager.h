@@ -27,8 +27,9 @@ STA_MODE_LIST
  */
 #define AP_MODE_LIST \
 		F(NONE), \
+		F(PORTAL), \
 		F(CONNECTED), \
-		F(PORTAL)
+		F(PAIRING), \
 
 enum {
 #define F(st) AP_MODE_ ## st

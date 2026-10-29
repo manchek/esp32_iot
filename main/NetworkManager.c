@@ -127,17 +127,45 @@ static void nm_task( void* arg )
 			ap_mode = ap_mode_req;
 
 			switch (ap_mode) {
+			case AP_MODE_NONE:
+				{
+					esp_err_t rc;
+					wifi_config_t ap_config;
+					if ((rc = esp_wifi_get_config(WIFI_IF_AP, &ap_config)) != ESP_OK) {
+						ESP_LOGE(LOGTAG, "Get AP config: %s", esp_err_to_name(rc));
+
+					} else {
+						ap_config.ap.max_connection = 0;
+						ap_config.ap.ssid_hidden = 1;
+						if ((rc = esp_wifi_set_config(WIFI_IF_AP, &ap_config)) != ESP_OK)
+							ESP_LOGE(LOGTAG, "Set AP config: %s", esp_err_to_name(rc));
+						if ((rc = esp_wifi_deauth_sta(0)) != ESP_OK)
+							ESP_LOGE(LOGTAG, "esp_wifi_deauth_sta: %s", esp_err_to_name(rc));
+					}
+				}
+				break;
+
 			case AP_MODE_PORTAL:
 				{
+					esp_err_t rc;
 					wifi_config_t ap_config;
-					memset(&ap_config, 0, sizeof(ap_config));
-					strcpy((char*)ap_config.ap.ssid, get_portal_ap_name());
-					ap_config.ap.authmode = WIFI_AUTH_OPEN;
-					ap_config.ap.ssid_hidden = 0;
-					ap_config.ap.max_connection = 8;  // max number of connected devices
-					ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &ap_config));
-					break;
+					//memset(&ap_config, 0, sizeof(ap_config));
+					if ((rc = esp_wifi_get_config(WIFI_IF_AP, &ap_config)) != ESP_OK) {
+						ESP_LOGE(LOGTAG, "Get AP config: %s", esp_err_to_name(rc));
+
+					} else {
+						memset(ap_config.ap.ssid, 0, sizeof(ap_config.ap.ssid));
+						memset(ap_config.ap.password, 0, sizeof(ap_config.ap.password));
+						strcpy((char*)ap_config.ap.ssid, get_portal_ap_name());
+						ap_config.ap.ssid_len = 0;
+						ap_config.ap.authmode = WIFI_AUTH_OPEN;
+						ap_config.ap.ssid_hidden = 0;
+						ap_config.ap.max_connection = 8;  // max number of connected devices
+						if ((rc = esp_wifi_set_config(WIFI_IF_AP, &ap_config)) != ESP_OK)
+							ESP_LOGE(LOGTAG, "Set AP config: %s", esp_err_to_name(rc));
+					}
 				}
+				break;
 			}
 		}
 
@@ -150,7 +178,7 @@ static void nm_task( void* arg )
 					wifi_config_t wifi_sta_config = { 0 };
 					strcpy((char*)wifi_sta_config.sta.ssid, config_get_wifi_ssid());
 					strcpy((char*)wifi_sta_config.sta.password, config_get_wifi_pw());
-					ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config));
+					ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_sta_config));
 					ESP_ERROR_CHECK(esp_wifi_connect());
 				}
 			}
@@ -193,7 +221,7 @@ network_init()
 	ap_config.ap.ssid_hidden = 1;
 	ap_config.ap.max_connection = 8;  // max number of connected devices
 	//ap_config.ap.beacon_interval = 100;
-	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &ap_config));
+	ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
 
 	ESP_ERROR_CHECK(esp_wifi_start());
 
@@ -229,10 +257,10 @@ network_advertise_ap( bool onoff )
 {
 /*
 	wifi_config_t ap_config;
-	ESP_ERROR_CHECK(esp_wifi_get_config(ESP_IF_WIFI_AP, &ap_config));
+	ESP_ERROR_CHECK(esp_wifi_get_config(WIFI_IF_AP, &ap_config));
 	ap_config.ap.ssid_hidden = !onoff;
 	ESP_LOGI(LOGTAG, "Set AP hidden %d", ap_config.ap.ssid_hidden);
-	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &ap_config));
+	ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
 */
 }
 
