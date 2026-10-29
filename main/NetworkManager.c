@@ -11,6 +11,7 @@
 
 #define HEX_MAC_LENGTH 18
 #define MAX_AP_RECORDS 10
+#define DEVICE_ID_LENGTH 18
 #define AP_NAME_LENGTH 20  // "AirCyclerConnectXXX\0"
 
 enum {
@@ -22,6 +23,7 @@ enum {
 static const char *LOGTAG __attribute__((unused)) = "NET";
 
 static char device_mac[HEX_MAC_LENGTH] = {0};
+static char device_name[DEVICE_ID_LENGTH] = {0};
 static TaskHandle_t nm_task_handle = NULL;      // network manager task
 static bool nm_task_run = false;                // enable task to run
 static esp_netif_t *netif_ap_handle = NULL;
@@ -54,6 +56,17 @@ char *get_portal_ap_name()
 		snprintf(ap_name, sizeof(ap_name), "AirCyclerConnect%X%02X", baseMac[4] & 0xf, baseMac[5]);
 	}
 	return ap_name;
+}
+
+char *get_connect_ap_name()
+{
+	if (!device_name[0]) {
+		uint8_t baseMac[6];
+		ESP_ERROR_CHECK(esp_efuse_mac_get_default(baseMac));
+		snprintf(device_name, sizeof(device_name), "AirCyclerG3%02X%02X%02X",
+				baseMac[3], baseMac[4], baseMac[5]);
+	}
+	return device_name;
 }
 
 static void
@@ -160,6 +173,30 @@ static void nm_task( void* arg )
 						ap_config.ap.ssid_len = 0;
 						ap_config.ap.authmode = WIFI_AUTH_OPEN;
 						ap_config.ap.ssid_hidden = 0;
+						ap_config.ap.max_connection = 8;  // max number of connected devices
+						if ((rc = esp_wifi_set_config(WIFI_IF_AP, &ap_config)) != ESP_OK)
+							ESP_LOGE(LOGTAG, "Set AP config: %s", esp_err_to_name(rc));
+					}
+				}
+				break;
+
+			case AP_MODE_CONNECTED:
+			case AP_MODE_PAIRING:
+				{
+					esp_err_t rc;
+					wifi_config_t ap_config;
+					//memset(&ap_config, 0, sizeof(ap_config));
+					if ((rc = esp_wifi_get_config(WIFI_IF_AP, &ap_config)) != ESP_OK) {
+						ESP_LOGE(LOGTAG, "Get AP config: %s", esp_err_to_name(rc));
+
+					} else {
+						memset(ap_config.ap.ssid, 0, sizeof(ap_config.ap.ssid));
+						memset(ap_config.ap.password, 0, sizeof(ap_config.ap.password));
+						strcpy((char*)ap_config.ap.ssid, get_connect_ap_name());
+						strcpy((char*)ap_config.ap.password, "SecretPassword");
+						ap_config.ap.ssid_len = 0;
+						ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
+						ap_config.ap.ssid_hidden = (ap_mode == AP_MODE_CONNECTED) ? 1 : 0;
 						ap_config.ap.max_connection = 8;  // max number of connected devices
 						if ((rc = esp_wifi_set_config(WIFI_IF_AP, &ap_config)) != ESP_OK)
 							ESP_LOGE(LOGTAG, "Set AP config: %s", esp_err_to_name(rc));

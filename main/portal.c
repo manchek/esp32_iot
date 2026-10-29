@@ -262,7 +262,9 @@ status_handler( httpd_req_t *req )
 static esp_err_t
 devices_handler( httpd_req_t *req )
 {
-	httpd_resp_sendstr_chunk(req, "STUFF");
+	httpd_resp_sendstr_chunk(req,
+		"<button onclick=\"fetch('/action?adddevice');\">Add Device</button>"
+	);
 	return ESP_OK;
 }
 
@@ -435,6 +437,8 @@ action_handler( httpd_req_t *req )
 		network_set_ap_mode(AP_MODE_NONE);
 	} else if (!strcmp(query, "portal")) {
 		network_set_ap_mode(AP_MODE_PORTAL);
+	} else if (!strcmp(query, "adddevice")) {
+		network_set_ap_mode(AP_MODE_PAIRING);
 	}
 	httpd_resp_send(req, "", 0);
 	return ESP_OK;
